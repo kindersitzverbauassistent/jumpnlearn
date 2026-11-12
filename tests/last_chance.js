@@ -23,6 +23,10 @@ function testLastChance() {
     name: "Test", index: 0, score: 0, correctCount: 0, lifeQuarters: 12, lastWordId: null
   });
   try {
+    check(englishAnswerMatches("I'm", "I'm (= I am)") && englishAnswerMatches("I am", "I'm (= I am)") &&
+      englishAnswerMatches("okay", "OK / okay") && englishAnswerMatches("Goodbye", "Bye., Goodbye.") &&
+      englishAnswerMatches("welcome", "welcome (to)") && englishAnswerMatches("welcome to", "welcome (to)") &&
+      !englishAnswerMatches("cat", "dog"), "Gültige Varianten müssen auch ohne Erläuterung oder Satzzeichen erkannt werden.");
     appData = {
       name: "Test",
       words: [

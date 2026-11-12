@@ -2,8 +2,129 @@
 
 const storageKey = "wortwelten-dungeon-v1";
 const defaultWords = [
-  ["der Apfel", "apple"], ["die Katze", "cat"], ["das Haus", "house"], ["die Sonne", "sun"],
-  ["das Buch", "book"], ["das Wasser", "water"], ["der Vogel", "bird"], ["der Freund", "friend"]
+  ["willkommen (bei / in)","welcome (to)"],
+  ["Hallo.","Hello."],
+  ["ich bin","I\u0027m (= I am)"],
+  ["Wie heißt du?","What\u0027s your name?"],
+  ["Hi, Hallo","Hi"],
+  ["Mein Name ist ... / Ich heiße ...","My name is ..."],
+  ["Wie geht es dir?","How are you?"],
+  ["Mir geht es gut.","I\u0027m fine."],
+  ["okay","OK / okay"],
+  ["Danke.","Thank you. / Thanks."],
+  ["Und du?","And you?"],
+  ["Es ist Zeit zu gehen.","It\u0027s time to go."],
+  ["Auf Wiedersehen., Tschüss!","Bye., Goodbye."],
+  ["ja","yes"],
+  ["die (auch Pl.); der; das","the"],
+  ["Fledermaus","bat"],
+  ["Schön, dich kennen zu lernen.","Nice to meet you."],
+  ["Ich mag Englisch.","I like English."],
+  ["blau","blue"],
+  ["rot","red"],
+  ["weiß","white"],
+  ["grün","green"],
+  ["braun","brown"],
+  ["grau","grey"],
+  ["pink; rosa","pink"],
+  ["gelb","yellow"],
+  ["orange","orange"],
+  ["im Park","in a park"],
+  ["Farbe","colour"],
+  ["Haustier","pet"],
+  ["Hund","dog"],
+  ["Zahl; Nummer","number"],
+  ["Leute; Menschen","people"],
+  ["Jungen; Buben","boys"],
+  ["Essen; Lebensmittel","food"],
+  ["Pommes frites","chips"],
+  ["Ich sehe was, was du nicht siehst und das ist ...","I spy with my little eye, something ..."],
+  ["Skateboard","skateboard"],
+  ["Ich kann Fahrrad fahren.","I can ride a bike."],
+  ["spielen","to play"],
+  ["aus; von","from"],
+  ["das; dies","this"],
+  ["cool, super","cool"],
+  ["Fußball","football"],
+  ["Fan","fan"],
+  ["elf","eleven"],
+  ["Wie alt bist du?","How old are you?"],
+  ["alt","old"],
+  ["Woher kommst du?","Where are you from?"],
+  ["sie sind","they\u0027re (= they are)"],
+  ["zwölf","twelve"],
+  ["Foto","photo"],
+  ["Deutschland","Germany"],
+  ["ihr","her"],
+  ["Familie","family"],
+  ["wir sind","we\u0027re (= we are)"],
+  ["Garten","garden"],
+  ["hier","here"],
+  ["sie ist","she\u0027s (= she is)"],
+  ["Schwester","sister"],
+  ["ich habe; ich besitze","I have"],
+  ["keine Brüder","no brothers"],
+  ["Bruder","brother"],
+  ["hier: ich","me"],
+  ["unser","our"],
+  ["Vater","father"],
+  ["er ist","he\u0027s (= he is)"],
+  ["Mutter","mother"],
+  ["auch","too"],
+  ["Papa; Vati","dad"],
+  ["Freund; Freundin","friend"],
+  ["Mama; Mutti","mum"],
+  ["das ist","that\u0027s (= that is)"],
+  ["England","England"],
+  ["von","of"],
+  ["sein","to be"],
+  ["du bist; ihr seid; Sie sind","you\u0027re (= you are)"],
+  ["Grill; Grillfest","barbecue"],
+  ["Box; Kiste; Schachtel","box"],
+  ["Tisch","table"],
+  ["Telefon","phone"],
+  ["Ball","ball"],
+  ["Helm","helmet"],
+  ["Buch; Heft","book"],
+  ["Stuhl","chair"],
+  ["Baum","tree"],
+  ["Leiter","ladder"],
+  ["hinter","behind"],
+  ["Haus","house"],
+  ["da ist, dort ist; es gibt","there\u0027s (= there is)"],
+  ["neben","next to"],
+  ["Teddybär","teddy"],
+  ["auf; an; am","on"],
+  ["unter","under"],
+  ["da sind; es gibt","there are"],
+  ["richtig, korrekt","right"],
+  ["falsch","wrong"],
+  ["zu Hause; Heim","home"],
+  ["zu Hause; daheim","at home"],
+  ["Wohnung","flat"],
+  ["Balkon","balcony"],
+  ["wer","who"],
+  ["Bist du bereit?","Are you ready?"],
+  ["nein","no"],
+  ["ich kann ... nicht finden","I can\u0027t find ..."],
+  ["Welche Farbe hat ...?","What colour is ...?"],
+  ["Tasche; Tüte; Sack","bag"],
+  ["Durcheinander; Unordnung","mess"],
+  ["wer ist","who\u0027s (= who is)"],
+  ["Herr (Anrede)","Mr"],
+  ["Frau (Anrede)","Mrs"],
+  ["Nachbar, Nachbarin","neighbour"],
+  ["Samstag","Saturday"],
+  ["Holz","wood"],
+  ["beschäftigt","busy"],
+  ["später","later"],
+  ["dann, danach","then"],
+  ["Nacht","night"],
+  ["merkwürdig, komisch, lustig","funny"],
+  ["Geräusch","noise"],
+  ["niemand","no one"],
+  ["Wind","wind"],
+  ["Bild","picture"]
 ];
 const startScreen = document.getElementById("start-screen");
 const gameShell = document.getElementById("game-shell");
@@ -30,10 +151,11 @@ const storageStatus = document.getElementById("storage-status");
 let dataWritable = true;
 let appData = {
   name: "",
-  words: defaultWords.map(([german, english], i) => ({ id: `default-${i}`, german, english, right: 0, wrong: 0 })),
+  words: defaultWords.map(([german, english], i) => ({ id: `starter-${i}`, german, english, right: 0, wrong: 0 })),
   highscores: [],
   profiles: [],
-  learningStatsVersion: 1
+  learningStatsVersion: 1,
+  starterVocabularyVersion: 1
 };
 
 function nameKey(name) {
@@ -78,6 +200,7 @@ function validAppData(data) {
     Array.isArray(data.highscores) && data.highscores.every(entry => typeof entry.name === "string" &&
       Number.isSafeInteger(entry.score) && entry.score >= 0 && typeof entry.date === "string" && !Number.isNaN(Date.parse(entry.date))) &&
     (data.learningStatsVersion === undefined || data.learningStatsVersion === 1) &&
+    (data.starterVocabularyVersion === undefined || data.starterVocabularyVersion === 1) &&
     (data.linkedVocabulary == null || typeof data.linkedVocabulary === "boolean") &&
     (!data.linkedVocabulary || typeof data.fileLinkId === "string") &&
     (data.vocabularyArchive == null || (Array.isArray(data.vocabularyArchive) &&
@@ -150,6 +273,30 @@ if (dataWritable && appData.learningStatsVersion === undefined) {
 if (dataWritable && appData.linkedVocabulary) {
   if (saveAppData({ ...appData, linkedVocabulary: false })) {
     wordStatus.textContent = "Die zuletzt im Browser gespeicherten Vokabeln werden verwendet. Die Textdatei wird nicht mehr synchronisiert.";
+  }
+}
+
+function addStarterVocabulary(data) {
+  const words = [...data.words];
+  const translations = new Set(words.map(word => word.english.trim().toLocaleLowerCase()));
+  const ids = new Set(words.map(word => word.id));
+  defaultWords.forEach(([german, english], index) => {
+    const key = english.trim().toLocaleLowerCase();
+    if (translations.has(key)) return;
+    let id = `starter-${index}`;
+    while (ids.has(id)) id += "-1";
+    ids.add(id);
+    translations.add(key);
+    words.push({ id, german, english, right: 0, wrong: 0 });
+  });
+  return { ...data, words, starterVocabularyVersion: 1 };
+}
+
+if (dataWritable && appData.starterVocabularyVersion === undefined) {
+  const updated = addStarterVocabulary(appData);
+  const added = updated.words.length - appData.words.length;
+  if (saveAppData(updated) && added) {
+    wordStatus.textContent = `${added} neue Startvokabeln wurden ergänzt. Deine bisherigen Vokabeln und Lernstände bleiben erhalten.`;
   }
 }
 

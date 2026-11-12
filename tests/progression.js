@@ -23,6 +23,20 @@ function testProgression() {
       ]
     };
     saveAppData = next => { appData = next; return true; };
+    const existing = {
+      ...appData,
+      words: [
+        { id: "starter-0", german: "eigenes Haus", english: "HOUSE", right: 3, wrong: 1 },
+        { id: "custom", german: "eigenes Wort", english: "custom word", right: 0, wrong: 0 }
+      ]
+    };
+    const migratedWords = addStarterVocabulary(existing);
+    check(migratedWords.words.length === existing.words.length + defaultWords.length - 1 &&
+      migratedWords.words[0] === existing.words[0] && migratedWords.profiles === existing.profiles &&
+      migratedWords.highscores === existing.highscores && migratedWords.starterVocabularyVersion === 1 &&
+      new Set(migratedWords.words.map(word => word.id)).size === migratedWords.words.length &&
+      validAppData(migratedWords),
+      "Neue Startvokabeln müssen ohne Duplikate oder Verlust bestehender Daten ergänzt werden.");
     const run = { name: "Test", score: 0, lifeQuarters: 12 };
     check(wordCategory(wordsForPlayer("Test")[0]) === "sicher", "Alte Statistik muss ihre bisherige Kategorie behalten.");
     appData.words[0].right = 5;

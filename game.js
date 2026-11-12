@@ -362,17 +362,30 @@ function nextRescueQuestion() {
   lastChanceAnswer.value = "";
 }
 
+function englishAnswerMatches(answer, expected) {
+  const normalize = value => value.normalize("NFC").trim().replace(/\s+/g, " ")
+    .replace(/\u2019/g, "'").replace(/[.!?…]+$/, "").trim().toLocaleLowerCase();
+  const accepted = [expected];
+  for (const variant of expected.split(/\s+\/\s+|,\s+(?=[A-Z])/)) {
+    accepted.push(variant);
+    const explanation = variant.match(/^(.*?)\s*\(=\s*(.*?)\)$/);
+    const optional = variant.match(/^(.*?)\s*\(([^=][^()]*)\)$/);
+    if (explanation) accepted.push(explanation[1], explanation[2]);
+    else if (optional) accepted.push(optional[1], `${optional[1]} ${optional[2]}`);
+  }
+  const normalized = normalize(answer);
+  return normalized !== "" && accepted.some(value => normalize(value) === normalized);
+}
+
 lastChanceForm.addEventListener("submit", event => {
   event.preventDefault();
   if (state !== "lastChance") return;
-  const normalize = value => value.normalize("NFC").trim().replace(/\s+/g, " ").toLocaleLowerCase();
-  const answer = normalize(lastChanceAnswer.value);
-  if (!answer) {
+  if (!lastChanceAnswer.value.trim()) {
     lastChanceStatus.textContent = "Bitte gib eine englische Übersetzung ein.";
     return;
   }
   lastChancesRemaining--;
-  const correct = answer === normalize(rescueWord.english);
+  const correct = englishAnswerMatches(lastChanceAnswer.value, rescueWord.english);
   if (correct) lifeQuarters = 4;
   recordAnswer(rescueWord.id, correct, { name: playerName, index, score, correctCount, lifeQuarters, lastWordId });
   if (correct) {
