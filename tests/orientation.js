@@ -73,3 +73,31 @@ function testOrientation() {
     lastChanceAnswer.value = saved.answer;
   }
 }
+
+function testMobileLayout() {
+  const check = (condition, message) => {
+    if (!condition) throw new Error(message);
+  };
+  check(matchMedia("(orientation: landscape) and (pointer: coarse) and (max-height: 600px)").matches &&
+    document.body.classList.contains("playing") && !gameShell.hidden,
+    "Diesen Test während eines Spiels im mobilen Querformat ausführen.");
+  const status = document.querySelector(".game-top").getBoundingClientRect();
+  const audio = document.querySelector(".audio-controls").getBoundingClientRect();
+  const area = canvas.getBoundingClientRect();
+  const rightBar = document.querySelector(".game-bottom").getBoundingClientRect();
+  const activeControls = boss.active ? bossControls : runControls;
+  const controlsBox = activeControls.getBoundingClientRect();
+  const buttons = [...activeControls.querySelectorAll("button")];
+  const availableWidth = innerWidth - status.width - rightBar.width - 2;
+  const maxWidth = Math.min(availableWidth, (innerHeight - 2) * 1000 / 490);
+  check(status.right <= area.left && area.right <= audio.left && area.right <= controlsBox.left,
+    "Status und Steuerung müssen links und rechts neben dem Spielfeld stehen.");
+  check(area.width >= maxWidth - 4 && area.top >= 0 && area.bottom <= innerHeight,
+    "Das Spielfeld muss den verfügbaren Platz im Querformat ausschöpfen.");
+  check(buttons.length === (boss.active ? 4 : 2) && audio.bottom <= controlsBox.top && buttons.every(button => {
+    const rect = button.getBoundingClientRect();
+    return rect.width >= 44 && rect.height >= 44 && rect.left >= 0 && rect.right <= innerWidth &&
+      rect.top >= 0 && rect.bottom <= innerHeight;
+  }), "Alle sichtbaren Tasten müssen erreichbar und mindestens 44 Pixel groß sein.");
+  return "Mobiles Layout: alle Tests bestanden";
+}
