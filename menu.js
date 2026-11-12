@@ -562,7 +562,9 @@ csvFile.addEventListener("change", async () => {
     const rows = parseVocabularyCsv(text);
     const translations = new Set(appData.words.map(word => word.english.trim().toLocaleLowerCase()));
     const ids = new Set(appData.words.map(word => word.id));
-    const imported = rows.map((row, index) => {
+    const imported = [];
+    let skipped = 0;
+    rows.forEach((row, index) => {
       if (row.fields.length !== 2) throw new Error(`Zeile ${row.line}: Genau zwei Spalten sind erforderlich.`);
       const [german, english] = row.fields.map(field => field.trim());
       if (!german || !english) throw new Error(`Zeile ${row.line}: Beide Übersetzungen sind erforderlich.`);
@@ -570,15 +572,21 @@ csvFile.addEventListener("change", async () => {
         throw new Error(`Zeile ${row.line}: Übersetzungen müssen einzeilig und höchstens 60 Zeichen lang sein.`);
       }
       const key = english.toLocaleLowerCase();
-      if (translations.has(key)) throw new Error(`Zeile ${row.line}: Die englische Übersetzung „${english}“ ist bereits vorhanden.`);
+      if (translations.has(key)) {
+        skipped++;
+        return;
+      }
       translations.add(key);
       let id = `csv-${Date.now()}-${index}`;
       while (ids.has(id)) id += "-1";
       ids.add(id);
-      return { id, german, english, right: 0, wrong: 0 };
+      imported.push({ id, german, english, right: 0, wrong: 0 });
     });
-    if (await saveVocabulary([...appData.words, ...imported])) {
-      wordStatus.textContent = `${imported.length} Vokabel${imported.length === 1 ? "" : "n"} importiert.`;
+    const summary = `${imported.length} Vokabel${imported.length === 1 ? "" : "n"} importiert; ${skipped} Duplikat${skipped === 1 ? "" : "e"} übersprungen.`;
+    if (!imported.length) {
+      wordStatus.textContent = summary;
+    } else if (await saveVocabulary([...appData.words, ...imported])) {
+      wordStatus.textContent = summary;
       renderMenu();
     } else {
       wordStatus.textContent = "CSV-Import nicht gespeichert. Bitte die Speichermeldung prüfen.";
@@ -665,6 +673,8 @@ startForm.addEventListener("submit", event => {
 });
 
 function showMenu() {
+  document.body.classList.remove("playing");
+  updateOrientation();
   startScreen.hidden = false;
   gameShell.hidden = true;
   belowGame.hidden = true;

@@ -25,6 +25,9 @@ const lastChanceCount = document.getElementById("last-chance-count");
 const lastChanceWord = document.getElementById("last-chance-word");
 const lastChanceAnswer = document.getElementById("last-chance-answer");
 const lastChanceStatus = document.getElementById("last-chance-status");
+const orientationPrompt = document.getElementById("orientation-prompt");
+const portraitTouch = window.matchMedia("(orientation: portrait) and (pointer: coarse)");
+let orientationPaused = false;
 
 const ground = 392;
 const upperGap = 132;
@@ -121,6 +124,29 @@ function loseLife() {
 function resetControls() {
   for (const control of Object.keys(controls)) controls[control] = false;
 }
+
+function updateOrientation() {
+  const paused = state !== "menu" && state !== "gameover" && portraitTouch.matches;
+  if (paused === orientationPaused) return;
+  orientationPaused = paused;
+  orientationPrompt.hidden = !paused;
+  if (paused) {
+    resetControls();
+    orientationPrompt.focus({ preventScroll: true });
+  } else if (state === "lastChance") {
+    lastChanceAnswer.focus({ preventScroll: true });
+  } else if (state === "bossIntro") {
+    bossStartButton.focus({ preventScroll: true });
+  } else if (state !== "menu" && state !== "gameover") {
+    canvas.focus({ preventScroll: true });
+  }
+}
+
+if (portraitTouch.addEventListener) portraitTouch.addEventListener("change", updateOrientation);
+else portraitTouch.addListener(updateOrientation);
+orientationPrompt.addEventListener("keydown", event => {
+  if (event.key === "Tab") event.preventDefault();
+});
 
 function enterLevel(level) {
   worldLevel = level;
@@ -292,6 +318,7 @@ function startGame(run) {
   resetBoss();
   correctCount = run.correctCount;
   state = "running";
+  document.body.classList.add("playing");
   fallingSegment = null;
   impactStarted = 0;
   impactHazard = "";
@@ -310,6 +337,7 @@ function startGame(run) {
   updateHud();
   showQuestion();
   draw();
+  updateOrientation();
 }
 
 function resolveChoice(segment, correct) {
@@ -379,7 +407,7 @@ function englishAnswerMatches(answer, expected) {
 
 lastChanceForm.addEventListener("submit", event => {
   event.preventDefault();
-  if (state !== "lastChance") return;
+  if (state !== "lastChance" || orientationPaused) return;
   if (!lastChanceAnswer.value.trim()) {
     lastChanceStatus.textContent = "Bitte gib eine englische Übersetzung ein.";
     return;
@@ -431,6 +459,7 @@ lastChance.addEventListener("keydown", event => {
 
 function finishGame(solution = "") {
   state = "gameover";
+  updateOrientation();
   setMusicMode("normal");
   const saved = saveAppData({ ...appData, highscores: highscoreEntries(playerName, score) });
   playSound("gameover");
@@ -455,7 +484,7 @@ function beginRespawn() {
 restartButton.addEventListener("click", () => { state = "menu"; showMenu(); });
 
 function setControl(control, pressed) {
-  if (state === "bossIntro" || state === "lastChance" || state === "gameover") return;
+  if (orientationPaused || state === "bossIntro" || state === "lastChance" || state === "gameover") return;
   if (state === "boss") {
     bossControl(control, pressed);
     return;
@@ -516,7 +545,7 @@ document.querySelectorAll("[data-control]").forEach(button => {
 });
 
 function update(dt) {
-  if (state === "bossIntro" || state === "lastChance") return;
+  if (orientationPaused || state === "bossIntro" || state === "lastChance") return;
   animationTime += dt;
   if (levelToastTime > 0) {
     levelToastTime -= dt;

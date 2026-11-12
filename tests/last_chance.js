@@ -10,6 +10,7 @@ function testLastChance() {
     defeatedBosses, segments, nextSegmentNumber, lastWordId, recentWordIds, fallingSegment,
     impactStarted, impactY, impactHazard, respawnStarted, animationTime, toastTime, levelToastTime,
     player: { ...player }, controls: { ...controls }, boss: { ...boss },
+    playing: document.body.classList.contains("playing"),
     hidden: [...document.querySelectorAll("[id]")].map(element => [element, element.hidden])
   };
   const check = (condition, message) => {
@@ -54,6 +55,9 @@ function testLastChance() {
     update(.01);
     check(state === "lastChance" && !lastChance.hidden && musicMode === "lastChance",
       "Nach dem Sturz muss die letzte Chance mit dramatischer Musik erscheinen.");
+    check(lastChanceWord.textContent === rescueWord.german && englishAnswerMatches(rescueWord.english, rescueWord.english) &&
+      !englishAnswerMatches(rescueWord.german, rescueWord.english),
+      "Die letzte Chance muss Deutsch anzeigen und die englische Übersetzung erwarten.");
     check(appData.highscores.length === 1, "Der Highscore muss schon beim Verlust aller Leben gesichert werden.");
     const pausedX = player.x;
     const pausedTime = animationTime;
@@ -102,9 +106,11 @@ function testLastChance() {
     beginBossFight();
     lifeQuarters = 4;
     const answeredQuestion = boss.question;
+    check(answeredQuestion.answerLanguage === "Deutsche", "Die Bossfrage muss für diesen Test Englisch nach Deutsch sein.");
     const wrong = answeredQuestion.answers.findIndex(item => item !== answeredQuestion.correctAnswer);
     resolveBossArrow(wrong);
     check(state === "lastChance" && boss.active, "Auch ein falsches Boss-Schild muss eine letzte Chance öffnen.");
+    check(lastChanceWord.textContent === rescueWord.german, "Auch nach einer englischen Bossfrage muss die letzte Chance Deutsch anzeigen.");
     submit(rescueWord.english);
     check(state === "boss" && lifeQuarters === 4 && boss.question !== answeredQuestion && boss.invulnerable > 0,
       "Nach der Rettung muss der Bosskampf mit einer neuen Frage und Trefferschutz weitergehen.");
@@ -190,6 +196,7 @@ function testLastChance() {
     Object.assign(player, saved.player);
     Object.assign(controls, saved.controls);
     Object.assign(boss, saved.boss);
+    document.body.classList.toggle("playing", saved.playing);
     saved.hidden.forEach(([element, hidden]) => { element.hidden = hidden; });
   }
 }

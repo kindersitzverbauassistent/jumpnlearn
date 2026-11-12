@@ -120,7 +120,7 @@ function startBoss() {
 }
 
 function beginBossFight() {
-  if (state !== "bossIntro") return;
+  if (state !== "bossIntro" || orientationPaused) return;
   bossIntro.hidden = true;
   boss.active = true;
   boss.health = 5;

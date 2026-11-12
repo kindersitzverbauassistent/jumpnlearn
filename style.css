@@ -42,3 +42,19 @@ footer{display:flex;justify-content:space-between;border-top:1px solid #51414a;p
 @media(max-width:700px){.boss-controls button{flex:1 1 28%;padding:10px 6px}}
 @media(max-width:700px){.level-toast{font-size:14px;padding:8px 12px}}
 @media(max-width:700px){.page{padding:0 14px}.masthead{height:70px}.chapter{display:none}.game-shell{margin-top:20px}.game-top{height:64px;padding:0 10px;gap:8px}.world-label{min-width:0}.world-icon{width:28px;height:28px;font-size:19px}.world-label strong{font-size:11px}.world-label small,.lives small,.score small{font-size:8px;letter-spacing:.5px}.progress-block{min-width:35px}.progress-caption span{display:none}.lives strong{font-size:14px;letter-spacing:0}.score{min-width:35px;gap:3px}.score>span{font-size:19px}.question-card{min-width:140px;padding:4px 7px;gap:6px}.question-label{font-size:7px;letter-spacing:.5px}.question-card strong{font-size:14px}.question-number{font-size:8px}.result-toast{font-size:10px;padding:6px;bottom:3%}.game-bottom{min-height:45px;padding:8px 10px;flex-wrap:wrap}.controls-hint{display:none}.tip{font-size:9px}.audio-controls button{padding:6px;font-size:9px}.audio-status{padding:0 10px 10px}.below-game{align-items:flex-start;flex-direction:column;padding:17px 0}.touch-controls{width:100%}.touch-controls button{flex:1}.message-card{padding:12px}.message-icon{font-size:22px}.message-card h2{font-size:19px;margin:4px}.message-card p{font-size:11px;margin:4px 0 8px}.message-card button{padding:8px;font-size:9px}footer{padding-top:16px}footer span+span{display:none}}
+.orientation-prompt{position:fixed;inset:0;z-index:30;display:grid;place-items:center;padding:20px;background:#171520f2}
+@media (orientation:landscape) and (pointer:coarse) and (max-height:600px){
+  .playing .page{max-width:none;padding:0}
+  .playing .masthead,.playing footer,.playing .instructions,.playing .controls-hint,.playing .tip{display:none}
+  .playing .game-shell,.playing .below-game{width:min(100%,calc(204vh - 260px));width:min(100%,calc(204dvh - 260px));margin:0 auto}
+  .playing .game-shell{box-shadow:none}
+  .playing .game-top{height:40px;padding:0 8px;gap:8px}
+  .playing .world-label{min-width:0}.playing .world-icon{width:26px;height:26px;font-size:18px}
+  .playing .world-label strong,.playing .score strong,.playing .run-stats strong{font-size:11px;margin-top:2px}
+  .playing .world-label small,.playing .lives small,.playing .score small,.playing .run-stats small{font-size:8px;letter-spacing:.5px}
+  .playing .lives strong{font-size:14px;letter-spacing:0;margin-top:2px}
+  .playing .game-bottom{min-height:32px;padding:3px 8px;justify-content:center;flex-wrap:nowrap}
+  .playing .audio-controls button{padding:5px 8px;font-size:9px}
+  .playing .below-game{display:flex;flex-direction:row;align-items:center;padding:3px 0}
+  .playing .touch-controls{width:100%}.playing .touch-controls button{flex:1;min-width:0;min-height:44px;padding:9px 5px}
+}
