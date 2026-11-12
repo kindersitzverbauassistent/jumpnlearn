@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#191825">
+  <title>Wortwelten – Der versunkene Dungeon</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="menu.js" defer></script>
+  <script src="audio.js" defer></script>
+  <script src="game.js" defer></script>
+  <script src="boss.js" defer></script>
+</head>
+<body>
+  <main class="page">
+    <header class="masthead">
+      <a class="brand" href="#" aria-label="Wortwelten"><span class="brand-mark">W</span><span>WORTWELTEN <small>CHRONICLES</small></span></a>
+      <span class="chapter">KAPITEL I <b>✦</b> DER VERSUNKENE DUNGEON</span>
+    </header>
+
+    <p id="storage-status" class="storage-status" role="alert" hidden></p>
+    <section class="start-screen" id="start-screen" aria-label="Startseite">
+      <div class="start-hero">
+        <div><p class="overline">✦ &nbsp; EIN ENDLOSES LERNABENTEUER</p><h1>Der versunkene<br><em>Dungeon.</em></h1><p>Laufe durch fremde Welten, finde die richtigen Wörter und übertriff deinen Highscore.</p>
+          <form id="start-form" class="start-form"><label for="player-select">SPIELERPROFIL</label><div><select id="player-select" required><option value="">Profil auswählen</option></select><button id="start-button" type="submit">ABENTEUER STARTEN <span>→</span></button></div></form>
+          <form id="profile-form" class="start-form profile-form"><label for="player-name">NEUES PROFIL ANLEGEN</label><div><input id="player-name" maxlength="30" required placeholder="Name eingeben" autocomplete="off"><button id="profile-create" type="submit">PROFIL ANLEGEN</button></div></form>
+          <p id="profile-status" class="form-status" role="status" aria-live="polite"></p>
+          <small class="local-note">Deine Daten bleiben lokal in diesem Browser.</small>
+        </div>
+        <div class="hero-art" aria-hidden="true"><div class="hero-arch"><span>✦</span><div class="hero-door"></div></div><div class="hero-torch">✦</div></div>
+      </div>
+      <div class="dashboard">
+        <section class="panel"><div class="panel-heading"><div><p class="overline">DIE BESTEN ABENTEUER</p><h2>Highscores</h2></div><span class="panel-symbol">♛</span></div><p class="panel-copy">Der beste Lauf pro Name.</p><ol id="highscore-list" class="highscores"></ol><p id="highscore-empty" class="empty-note">Noch keine Einträge. Starte deinen ersten Lauf!</p></section>
+        <section class="panel vocabulary-panel"><div class="panel-heading"><div><p class="overline">DEIN WORTSCHATZ</p><h2>Vokabeln verwalten</h2></div><span class="panel-symbol">✎</span></div><p class="panel-copy">Der Wortschatz ist für alle gleich. Die Zahlen und Lernstufen gehören zum ausgewählten Profil. Änderungen an Vokabeln gelten für alle.</p>
+          <p id="stats-profile" class="panel-copy" aria-live="polite"></p>
+          <fieldset id="word-editor">
+          <form id="word-form" class="word-add"><label><span>DEUTSCH</span><input id="word-german" maxlength="60" required placeholder="z. B. der Mond"></label><label><span>ENGLISCH</span><input id="word-english" maxlength="60" required placeholder="z. B. moon"></label><button type="submit">+ HINZUFÜGEN</button></form>
+          <div class="csv-import"><button type="button" id="csv-import-button">CSV IMPORTIEREN</button><input id="csv-file" type="file" accept=".csv,text/csv" hidden><span>Deutsch;Englisch · UTF-8</span></div>
+          <p id="word-status" class="form-status" role="status" aria-live="polite"></p>
+          <div class="word-head"><span>DEUTSCH / ENGLISCH</span><span>RICHTIG / FALSCH</span></div><div id="word-list" class="word-list"></div>
+          </fieldset>
+        </section>
+      </div>
+    </section>
+
+    <section class="game-shell" id="game-shell" aria-label="Vokabel-Abenteuer" hidden>
+      <div class="game-top">
+        <div class="world-label"><span class="world-icon">✧</span><span><small id="world-number">LEVEL 01</small><strong id="world-name">Der versunkene Dungeon</strong></span></div>
+        <div class="run-stats"><small>DEIN LAUF</small><strong>✓ <span id="run-correct">0</span> &nbsp; · &nbsp; ✕ <span id="run-wrong">0</span></strong></div>
+        <div class="lives"><small>LEBEN</small><strong id="lives" aria-label="3 Leben">♥ 3</strong></div>
+        <div class="score"><span>✦</span><div><small>PUNKTE</small><strong id="score">0</strong></div></div>
+      </div>
+      <div class="game-area">
+        <canvas id="game" width="1000" height="490" tabindex="-1" aria-label="Die Figur läuft automatisch. Springe für die obere Antwort oder bleibe für die untere Antwort unten."></canvas>
+        <div class="question-card" id="question-bubble" aria-live="polite">
+          <div><span class="question-label" id="question-label">ÜBERSETZE INS ENGLISCHE</span><strong id="question">der Apfel</strong></div>
+          <span class="question-number" id="question-number">#1</span>
+        </div>
+        <div class="result-toast" id="result-toast" hidden role="status" aria-live="polite"></div>
+        <div class="level-toast" id="level-toast" hidden role="status" aria-live="polite"></div>
+        <p id="boss-status" class="boss-status" role="status" aria-live="polite" hidden></p>
+        <div class="game-message" id="message" hidden>
+          <div class="message-card" role="dialog" aria-modal="true" aria-labelledby="message-title">
+            <span class="message-icon" id="message-icon">✦</span>
+            <h2 id="message-title"></h2>
+            <p id="message-text"></p>
+            <button id="restart-button" type="button">ZUR STARTSEITE <span>→</span></button>
+          </div>
+        </div>
+      </div>
+      <div class="game-bottom">
+        <div class="controls-hint" id="run-hint"><span class="hint-heading">STEUERUNG</span><span class="key wide">LEERTASTE</span><span>Springen</span><span class="hint-divider"></span><span class="key">↓</span><span>Hinunter</span></div>
+        <div class="controls-hint" id="boss-hint" hidden><span>← → Laufen · ↑ / Leertaste Springen · Maus zielen · Linksklick schießen</span></div>
+        <div class="tip" id="run-tip"><span>✦</span> DU LÄUFST AUTOMATISCH</div>
+        <div class="audio-controls" aria-label="Audio-Einstellungen">
+          <button type="button" id="music-toggle" aria-pressed="false">♫ Musik: Aus</button>
+          <button type="button" id="sound-toggle" aria-pressed="false">♪ Sound: Aus</button>
+          <button type="button" id="speech-toggle" aria-pressed="true">◖ Sprache: An</button>
+        </div>
+      </div>
+      <p class="audio-status" id="audio-status" role="status" hidden></p>
+      <p class="audio-status" id="speech-status" role="status" hidden></p>
+    </section>
+
+    <div class="game-message boss-intro" id="boss-intro" hidden>
+      <div class="message-card boss-intro-card" role="dialog" aria-modal="true" aria-labelledby="boss-intro-title" aria-describedby="boss-intro-description">
+        <span class="message-icon" aria-hidden="true">✦</span>
+        <h2 id="boss-intro-title">Der Bosskampf beginnt!</h2>
+        <div id="boss-intro-description">
+          <p>Das Spiel pausiert, bis du bereit bist.</p>
+          <p><strong>Zielen und schießen:</strong> Ziele mit der Maus auf das richtige Antwortschild und schieße mit der linken Maustaste. Auf Touchgeräten tippst du auf das Schild.</p>
+          <p><strong>Ausweichen:</strong> Bewege dich mit ← / → oder A / D und springe mit ↑, W oder Leertaste, um den Geschossen auszuweichen. Auf Touchgeräten helfen dir die Bildschirmtasten.</p>
+          <p>Fünf richtige Treffer besiegen den Boss. Ein falsches Schild oder ein gegnerisches Geschoss kostet ein Leben.</p>
+        </div>
+        <button id="boss-start-button" type="button">BOSSKAMPF STARTEN <span>→</span></button>
+      </div>
+    </div>
+
+    <div class="below-game" id="below-game" hidden>
+      <div class="instructions"><span class="instruction-icon">⌁</span><p id="run-instructions"><strong>Zwei Wege. Eine Entscheidung.</strong><br>Richtig: +¼ Leben bis maximal 5. Falsch: −1 Leben. Wähle deinen Weg durch die Fallen.</p><p id="run-three-instructions" hidden><strong>Drei Wege. Doppelte Punkte!</strong><br>Einmal springen für die Mitte, dort erneut springen für oben. Mit ↓ steigst du eine Ebene ab. Unten bleibst du am Boden.</p><p id="boss-instructions" hidden><strong id="boss-instructions-title">Besiege den Boss!</strong><br>Ziele mit der Maus und schieße mit Linksklick auf das richtige Schild. Auf Touchgeräten tippe auf das Schild. Fünf richtige Treffer besiegen ihn.</p></div>
+      <div class="touch-controls" id="run-controls" aria-label="Spielsteuerung"><button type="button" data-control="down">↓ <span>HINUNTER</span></button><button type="button" data-control="jump">↑ <span>SPRINGEN</span></button></div>
+      <div class="touch-controls boss-controls" id="boss-controls" aria-label="Bosssteuerung" hidden><button type="button" data-control="left">← <span>LINKS</span></button><button type="button" data-control="right">→ <span>RECHTS</span></button><button type="button" data-control="jump">↑ <span>SPRINGEN</span></button><button type="button" data-control="shoot">➤ <span>SCHIESSEN</span></button></div>
+    </div>
+    <footer><span>✦ &nbsp; EIN ABENTEUER IN WORTEN</span><span>DUNGEON · WÜSTE · DSCHUNGEL · WELTRAUM · UNTERWASSER · BASAR · EINHORN · BERGE · NEW YORK · LONDON · BÜCHER · ZAUBEREI</span></footer>
+  </main>
+</body>
+</html>
