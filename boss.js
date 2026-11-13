@@ -189,7 +189,7 @@ canvas.addEventListener("pointermove", event => {
   if (state === "boss") aimBossAt(event);
 });
 canvas.addEventListener("pointerdown", event => {
-  if (state !== "boss" || !event.isPrimary || event.button !== 0) return;
+  if (state !== "boss" || (event.pointerType !== "touch" && !event.isPrimary) || event.button !== 0) return;
   event.preventDefault();
   canvas.focus({ preventScroll: true });
   aimBossAt(event);

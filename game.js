@@ -26,6 +26,8 @@ const lastChanceWord = document.getElementById("last-chance-word");
 const lastChanceAnswer = document.getElementById("last-chance-answer");
 const lastChanceStatus = document.getElementById("last-chance-status");
 const orientationPrompt = document.getElementById("orientation-prompt");
+const orientationDescription = document.getElementById("orientation-description");
+const coarseTouch = window.matchMedia("(pointer: coarse)");
 const portraitTouch = window.matchMedia("(orientation: portrait) and (pointer: coarse)");
 let orientationPaused = false;
 
@@ -126,7 +128,13 @@ function resetControls() {
 }
 
 function updateOrientation() {
-  const paused = state !== "menu" && state !== "gameover" && portraitTouch.matches;
+  const paused = state !== "menu" && state !== "gameover" && coarseTouch.matches &&
+    (state === "lastChance" ? !portraitTouch.matches : portraitTouch.matches);
+  if (paused) {
+    orientationDescription.textContent = state === "lastChance"
+      ? "Drehe dein Gerät für die letzte Chance ins Hochformat. Falls nötig, schalte die Drehsperre aus."
+      : "Drehe dein Gerät ins Querformat. Das Spiel pausiert, bis du weiterspielen kannst. Falls nötig, schalte die Drehsperre aus.";
+  }
   if (paused === orientationPaused) return;
   orientationPaused = paused;
   orientationPrompt.hidden = !paused;
@@ -134,7 +142,8 @@ function updateOrientation() {
     resetControls();
     orientationPrompt.focus({ preventScroll: true });
   } else if (state === "lastChance") {
-    lastChanceAnswer.focus({ preventScroll: true });
+    if (coarseTouch.matches) lastChance.focus({ preventScroll: true });
+    else lastChanceAnswer.focus({ preventScroll: true });
   } else if (state === "bossIntro") {
     bossStartButton.focus({ preventScroll: true });
   } else if (state !== "menu" && state !== "gameover") {
@@ -144,6 +153,8 @@ function updateOrientation() {
 
 if (portraitTouch.addEventListener) portraitTouch.addEventListener("change", updateOrientation);
 else portraitTouch.addListener(updateOrientation);
+if (coarseTouch.addEventListener) coarseTouch.addEventListener("change", updateOrientation);
+else coarseTouch.addListener(updateOrientation);
 orientationPrompt.addEventListener("keydown", event => {
   if (event.key === "Tab") event.preventDefault();
 });
@@ -377,7 +388,11 @@ function endGame(bossQuestionAnswered = false) {
     nextRescueQuestion();
     lastChance.hidden = false;
     setMusicMode("lastChance");
-    lastChanceAnswer.focus({ preventScroll: true });
+    updateOrientation();
+    if (!orientationPaused) {
+      if (coarseTouch.matches) lastChance.focus({ preventScroll: true });
+      else lastChanceAnswer.focus({ preventScroll: true });
+    }
     return;
   }
   finishGame();
@@ -434,7 +449,8 @@ lastChanceForm.addEventListener("submit", event => {
       beginRespawn();
       updateHud();
     }
-    canvas.focus({ preventScroll: true });
+    updateOrientation();
+    if (!orientationPaused) canvas.focus({ preventScroll: true });
   } else if (lastChancesRemaining > 0) {
     lastChanceStatus.textContent = `Leider falsch. Richtig war: ${rescueWord.english}.`;
     nextRescueQuestion();

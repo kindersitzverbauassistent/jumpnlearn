@@ -25,9 +25,9 @@ function testBossAim() {
     let hit = -1;
     resolveBossArrow = target => { hit = target; };
     const rect = canvas.getBoundingClientRect();
-    const pointer = (type, x, y, button = 0, pointerType = "mouse") => {
+    const pointer = (type, x, y, button = 0, pointerType = "mouse", isPrimary = true) => {
       canvas.dispatchEvent(new PointerEvent(type, {
-        bubbles: true, isPrimary: true, button, pointerType,
+        bubbles: true, isPrimary, button, pointerType,
         clientX: rect.left + x * rect.width / canvas.width,
         clientY: rect.top + y * rect.height / canvas.height
       }));
@@ -50,6 +50,10 @@ function testBossAim() {
     pointer("pointerdown", 790, bossShieldY(1) + 24, 0, "touch");
     updateBoss(1);
     check(hit === 1, "Ein Tippen auf dem Touchscreen muss zielen und schießen.");
+    hit = -1;
+    pointer("pointerdown", 790, bossShieldY(2) + 24, 0, "touch", false);
+    updateBoss(1);
+    check(hit === 2, "Auch ein zweiter Finger muss beim gleichzeitigen Bewegen schießen können.");
     check(arrowShieldIntersection(700, 190, 200, 100, 201) !== null,
       "Auch ein großer Bewegungsschritt muss einen Schildtreffer erkennen.");
     boss.playerY = 390;

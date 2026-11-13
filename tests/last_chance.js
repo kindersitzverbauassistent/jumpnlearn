@@ -10,6 +10,9 @@ function testLastChance() {
     defeatedBosses, segments, nextSegmentNumber, lastWordId, recentWordIds, fallingSegment,
     impactStarted, impactY, impactHazard, respawnStarted, animationTime, toastTime, levelToastTime,
     player: { ...player }, controls: { ...controls }, boss: { ...boss },
+    orientationPaused, orientationDescription: orientationDescription.textContent,
+    coarseMatches: Object.getOwnPropertyDescriptor(coarseTouch, "matches"),
+    portraitMatches: Object.getOwnPropertyDescriptor(portraitTouch, "matches"),
     playing: document.body.classList.contains("playing"),
     hidden: [...document.querySelectorAll("[id]")].map(element => [element, element.hidden])
   };
@@ -24,6 +27,8 @@ function testLastChance() {
     name: "Test", index: 0, score: 0, correctCount: 0, lifeQuarters: 12, lastWordId: null
   });
   try {
+    Object.defineProperty(coarseTouch, "matches", { configurable: true, value: false });
+    Object.defineProperty(portraitTouch, "matches", { configurable: true, value: false });
     check(englishAnswerMatches("I'm", "I'm (= I am)") && englishAnswerMatches("I am", "I'm (= I am)") &&
       englishAnswerMatches("okay", "OK / okay") && englishAnswerMatches("Goodbye", "Bye., Goodbye.") &&
       englishAnswerMatches("welcome", "welcome (to)") && englishAnswerMatches("welcome to", "welcome (to)") &&
@@ -150,6 +155,29 @@ function testLastChance() {
     instruments = [];
     setMusicMode("normal");
     check(instruments.includes("triangle"), "Nach der letzten Chance muss die normale Musik zurückkehren.");
+
+    Object.defineProperty(coarseTouch, "matches", { configurable: true, value: true });
+    for (const bossMode of [false, true]) {
+      Object.defineProperty(portraitTouch, "matches", { configurable: true, value: false });
+      start();
+      if (bossMode) { startBoss(); beginBossFight(); }
+      lifeQuarters = 0;
+      endGame();
+      check(orientationPaused && orientationDescription.textContent.includes("Hochformat"),
+        "Die letzte Chance muss im Querformat zum Drehen auffordern.");
+      submit(rescueWord.english);
+      check(state === "lastChance" && lastChancesRemaining === 3,
+        "Vor dem Drehen darf keine Antwort angenommen werden.");
+      Object.defineProperty(portraitTouch, "matches", { configurable: true, value: true });
+      portraitTouch.dispatchEvent(new Event("change"));
+      submit(rescueWord.english);
+      check(state === (bossMode ? "boss" : "respawning") && orientationPaused &&
+        orientationDescription.textContent.includes("Querformat"),
+        "Nach der Rettung muss das Spiel auf das Querformat warten.");
+      Object.defineProperty(portraitTouch, "matches", { configurable: true, value: false });
+      portraitTouch.dispatchEvent(new Event("change"));
+      check(!orientationPaused, "Nach dem Zurückdrehen muss das Spiel fortgesetzt werden.");
+    }
     return "Letzte Chancen und Endlosgeschwindigkeit: alle Tests bestanden";
   } finally {
     appData = saved.appData;
@@ -196,6 +224,12 @@ function testLastChance() {
     Object.assign(player, saved.player);
     Object.assign(controls, saved.controls);
     Object.assign(boss, saved.boss);
+    if (saved.coarseMatches) Object.defineProperty(coarseTouch, "matches", saved.coarseMatches);
+    else delete coarseTouch.matches;
+    if (saved.portraitMatches) Object.defineProperty(portraitTouch, "matches", saved.portraitMatches);
+    else delete portraitTouch.matches;
+    orientationPaused = saved.orientationPaused;
+    orientationDescription.textContent = saved.orientationDescription;
     document.body.classList.toggle("playing", saved.playing);
     saved.hidden.forEach(([element, hidden]) => { element.hidden = hidden; });
   }
