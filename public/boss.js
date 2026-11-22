@@ -42,6 +42,7 @@ const boss = {
   arrow: null,
   aim: null,
   invulnerable: 0,
+  hitFlash: 0,
   victoryTime: 0
 };
 
@@ -168,8 +169,8 @@ function bossControl(control, pressed) {
 function aimBossAt(event) {
   const rect = canvas.getBoundingClientRect();
   boss.aim = {
-    x: (event.clientX - rect.left) * canvas.width / rect.width,
-    y: (event.clientY - rect.top) * canvas.height / rect.height
+    x: (event.clientX - rect.left) * LOGICAL_W / rect.width,
+    y: (event.clientY - rect.top) * LOGICAL_H / rect.height
   };
 }
 
@@ -228,11 +229,20 @@ function resolveBossArrow(target) {
     correctCount++;
     lifeQuarters = Math.min(maxLifeQuarters, lifeQuarters + 1);
     boss.health--;
+    boss.hitFlash = 0.28;
+    if (typeof spawnDungeonParticles === "function") {
+      spawnDungeonParticles(790, bossShieldY(target) + 24, 16, ["#ffe478", "#5df2b5", "#fff4cc", "#ff9e5e"], 190, 6, false);
+      spawnComicPopup(790, bossShieldY(target) - 6, `TREFFER +${points}!`, "#7effb2", false);
+    }
     if (current.answerLanguage === "Englische") speakEnglish(current.word.english);
     playSound("correct");
   } else {
     loseLife();
     boss.invulnerable = 1.5;
+    if (typeof spawnDungeonParticles === "function") {
+      spawnDungeonParticles(790, bossShieldY(target) + 24, 14, ["#ff6a4d", "#ffd266", "#ffffff"], 180, 5.5, false);
+      spawnComicPopup(boss.playerX + 18, boss.playerY - 66, "FALSCH!", "#ff7e6b", false);
+    }
     playSound("death");
   }
   recordAnswer(current.word.id, correct, { name: playerName, index, score, correctCount, lifeQuarters, lastWordId });
@@ -295,6 +305,7 @@ function updateBoss(dt, movementSpeedFactor = 1) {
     return;
   }
   boss.invulnerable = Math.max(0, boss.invulnerable - dt);
+  boss.hitFlash = Math.max(0, (boss.hitFlash || 0) - dt);
   boss.playerX = Math.max(35, Math.min(465, boss.playerX + ((controls.right ? 1 : 0) - (controls.left ? 1 : 0)) * 240 * movementSpeedFactor * dt));
   boss.playerVy += 1500 * dt;
   boss.playerY = Math.min(390, boss.playerY + boss.playerVy * dt);
@@ -319,7 +330,7 @@ function updateBoss(dt, movementSpeedFactor = 1) {
       boss.arrow = null;
       resolveBossArrow(target);
       if (state !== "boss") return;
-    } else if (arrow.x < 0 || arrow.x > canvas.width || arrow.y < 0 || arrow.y > canvas.height) {
+    } else if (arrow.x < 0 || arrow.x > LOGICAL_W || arrow.y < 0 || arrow.y > LOGICAL_H) {
       boss.arrow = null;
       toast.textContent = "✹ VERFEHLT · VERSUCHE ES NOCH EINMAL";
       toast.hidden = false;
@@ -362,6 +373,9 @@ function updateBoss(dt, movementSpeedFactor = 1) {
 
 function drawBossFigure() {
   ctx.save();
+  const breath = Math.sin(animationTime * 3.4) * 4;
+  const hitShake = boss.hitFlash > 0 ? Math.sin(animationTime * 55) * 6 * (boss.hitFlash / 0.28) : 0;
+  ctx.translate(hitShake, breath);
   ctx.lineJoin = "round";
   if (worldLevel === 0) {
     ctx.fillStyle = "#201c29";
@@ -560,44 +574,91 @@ function drawBossFigure() {
 
 function drawBoss() {
   drawBackground(0);
-  ctx.fillStyle = ["#40333a", "#b98150", "#3c5941", "#41465e", "#8a8771", "#a2745c", "#ad8d94", "#6b8060", "#565461", "#6f6863", "#61483e", "#4b395a"][worldLevel]; ctx.fillRect(0, 390, 1000, 100);
-  ctx.fillStyle = ["#a7806e", "#f0ca88", "#9cad6d", "#9abac9", "#d0c598", "#f0c58f", "#e7c7c9", "#c5d5a5", "#a9a4ac", "#c5b4a4", "#d5b583", "#c4a4c6"][worldLevel]; ctx.fillRect(0, 388, 1000, 8);
+  if (typeof drawWorldAmbience === "function") drawWorldAmbience();
+  ctx.fillStyle = ["#40333a", "#b98150", "#3c5941", "#41465e", "#8a8771", "#a2745c", "#ad8d94", "#6b8060", "#565461", "#6f6863", "#61483e", "#4b395a"][worldLevel]; ctx.fillRect(0, 390, LOGICAL_W, 100);
+  ctx.fillStyle = "#1b1423"; ctx.fillRect(0, 386, LOGICAL_W, 4);
+  ctx.fillStyle = ["#b88c75", "#f7d491", "#a7be75", "#a3c6d8", "#dcd1a1", "#f4ca92", "#f0cfd2", "#cfe0ad", "#b4aeb8", "#d0beae", "#dfbe89", "#ccaad0"][worldLevel]; ctx.fillRect(0, 388, LOGICAL_W, 7);
 
   if (state === "bossVictory") {
-    const radius = 30 + boss.victoryTime * 110;
-    ctx.fillStyle = "#f3a448"; ctx.beginPath(); ctx.arc(790, 245, radius, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = "#ffe4a0"; ctx.beginPath(); ctx.arc(790, 245, radius * .55, 0, Math.PI * 2); ctx.fill();
+    const radius = 32 + boss.victoryTime * 115;
+    ctx.save();
+    ctx.fillStyle = "#f3a448"; ctx.strokeStyle = "#1b1423"; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.arc(790, 245, radius, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = "#ffe89e"; ctx.beginPath(); ctx.arc(790, 245, radius * .58, 0, Math.PI * 2); ctx.fill();
+    for (let i = 0; i < 8; i++) {
+      const ang = animationTime * 3 + i * Math.PI / 4;
+      const sx = 790 + Math.cos(ang) * (radius * 0.85);
+      const sy = 245 + Math.sin(ang) * (radius * 0.85);
+      ctx.fillStyle = "#fff8d6";
+      ctx.beginPath(); ctx.arc(sx, sy, 8, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    }
+    ctx.font = '900 30px "Plus Jakarta Sans", Arial, sans-serif';
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.lineWidth = 6; ctx.strokeStyle = "#1b1423";
+    ctx.strokeText("BESIEGT!", 790, 245);
+    ctx.fillStyle = "#ffe885";
+    ctx.fillText("BESIEGT!", 790, 245);
+    ctx.restore();
   } else {
     drawBossFigure();
     boss.question.answers.forEach((answer, i) => {
       const y = bossShieldY(i);
-      ctx.fillStyle = "#c69a72";
-      ctx.fillRect(bossShieldX, y, bossShieldWidth, bossShieldHeight);
-      ctx.strokeStyle = "#62483f";
-      ctx.lineWidth = 2;
-      ctx.strokeRect(bossShieldX, y, bossShieldWidth, bossShieldHeight);
-      ctx.fillStyle = "#382c31"; ctx.font = "bold 17px Georgia, serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-      ctx.fillText(answer, 790, y + 24, 145);
+      const hovered = boss.aim && boss.aim.x >= bossShieldX && boss.aim.x <= bossShieldX + bossShieldWidth &&
+        boss.aim.y >= y && boss.aim.y <= y + bossShieldHeight;
+      ctx.save();
+      ctx.fillStyle = "rgba(18, 12, 24, 0.5)";
+      ctx.beginPath(); ctx.roundRect(bossShieldX + 3, y + 4, bossShieldWidth, bossShieldHeight, 9); ctx.fill();
+      ctx.fillStyle = hovered ? "#efd09e" : "#d4a679";
+      ctx.beginPath(); ctx.roundRect(bossShieldX, y, bossShieldWidth, bossShieldHeight, 9); ctx.fill();
+      ctx.fillStyle = hovered ? "#fff0ca" : "#e9c49b";
+      ctx.beginPath(); ctx.roundRect(bossShieldX + 3, y + 3, bossShieldWidth - 6, 12, 5); ctx.fill();
+      ctx.strokeStyle = hovered ? "#ffe28a" : "#1b1423";
+      ctx.lineWidth = hovered ? 3.5 : 3;
+      ctx.beginPath(); ctx.roundRect(bossShieldX, y, bossShieldWidth, bossShieldHeight, 9); ctx.stroke();
+      ctx.fillStyle = "#ffe29a";
+      ctx.beginPath(); ctx.arc(bossShieldX + 9, y + 9, 2.3, 0, Math.PI * 2); ctx.arc(bossShieldX + bossShieldWidth - 9, y + 9, 2.3, 0, Math.PI * 2); ctx.fill();
+      ctx.font = '800 17px "Plus Jakarta Sans", Georgia, serif'; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.lineWidth = 3; ctx.strokeStyle = "rgba(255, 246, 224, 0.65)";
+      ctx.strokeText(answer, 790, y + 25, 145);
+      ctx.fillStyle = "#2b1c22";
+      ctx.fillText(answer, 790, y + 25, 145);
+      ctx.restore();
     });
-    ctx.fillStyle = "#29232dd9"; ctx.fillRect(635, 5, 310, 29);
-    ctx.fillStyle = "#f2c08a"; ctx.font = "bold 18px Arial, sans-serif"; ctx.textAlign = "center";
-    ctx.fillText(`${bossTypes[worldLevel].name.toLocaleUpperCase()} ${"♥".repeat(boss.health)}${"♡".repeat(5 - boss.health)}`, 790, 24, 295);
+    ctx.save();
+    ctx.fillStyle = "#1d1726";
+    ctx.beginPath(); ctx.roundRect(630, 5, 320, 32, 8); ctx.fill();
+    ctx.strokeStyle = "#d9a96c"; ctx.lineWidth = 2.5; ctx.stroke();
+    ctx.fillStyle = "#ffe0a3"; ctx.font = '800 16px "Plus Jakarta Sans", Arial, sans-serif';
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText(`${bossTypes[worldLevel].name.toLocaleUpperCase()}  ${"♥".repeat(boss.health)}${"♡".repeat(5 - boss.health)}`, 790, 21.5, 300);
+    ctx.restore();
   }
 
   for (const ball of boss.fireballs) {
-    ctx.fillStyle = ["#d75b2e", "#c99044", "#467d42", "#4b8ac4", "#654d83", "#aa6e92", "#c06ca2", "#718476", "#747c9e", "#a67c4e", "#565070", "#659d91"][worldLevel];
-    ctx.beginPath(); ctx.arc(ball.x, ball.y, 13, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = ["#ffd077", "#f5d88d", "#c3e780", "#b5f7ff", "#c6c1ee", "#ffdda6", "#ffe4f2", "#e5e9d8", "#f8e6ab", "#f5d79a", "#cfb3d5", "#c3ffe0"][worldLevel];
-    ctx.beginPath(); ctx.arc(ball.x, ball.y, 7, 0, Math.PI * 2); ctx.fill();
+    ctx.save();
+    const outer = ["#d75b2e", "#c99044", "#467d42", "#4b8ac4", "#654d83", "#aa6e92", "#c06ca2", "#718476", "#747c9e", "#a67c4e", "#565070", "#659d91"][worldLevel];
+    const inner = ["#ffd077", "#f5d88d", "#c3e780", "#b5f7ff", "#c6c1ee", "#ffdda6", "#ffe4f2", "#e5e9d8", "#f8e6ab", "#f5d79a", "#cfb3d5", "#c3ffe0"][worldLevel];
+    ctx.fillStyle = outer;
+    ctx.strokeStyle = "#1b1423"; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.arc(ball.x, ball.y, 13.5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = inner;
+    ctx.beginPath(); ctx.arc(ball.x - 2, ball.y - 2, 7.5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#ffffff";
+    ctx.beginPath(); ctx.arc(ball.x - 4, ball.y - 4, 2.5, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
   }
   if (state === "boss") {
     ctx.save();
-    ctx.strokeStyle = "#f1dab080"; ctx.lineWidth = 1; ctx.setLineDash([6, 8]);
+    ctx.strokeStyle = "#ffe8b899"; ctx.lineWidth = 1.8; ctx.setLineDash([7, 7]);
     const aim = boss.aim || { x: bossShieldX, y: boss.playerY - 38 };
     ctx.beginPath(); ctx.moveTo(boss.playerX + 30, boss.playerY - 38); ctx.lineTo(aim.x, aim.y); ctx.stroke();
     if (boss.aim) {
       ctx.setLineDash([]);
-      ctx.beginPath(); ctx.arc(aim.x, aim.y, 8, 0, Math.PI * 2); ctx.stroke();
+      ctx.strokeStyle = "#1b1423"; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.arc(aim.x, aim.y, 10, 0, Math.PI * 2); ctx.stroke();
+      ctx.strokeStyle = "#ffe08a"; ctx.lineWidth = 2.2;
+      ctx.beginPath(); ctx.arc(aim.x, aim.y, 10, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = "#ffe08a"; ctx.beginPath(); ctx.arc(aim.x, aim.y, 2.5, 0, Math.PI * 2); ctx.fill();
     }
     ctx.restore();
   }
@@ -606,8 +667,17 @@ function drawBoss() {
     ctx.save();
     ctx.translate(x, y);
     ctx.rotate(Math.atan2(vy, vx));
-    ctx.strokeStyle = "#f1dab0"; ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.moveTo(-25, 0); ctx.lineTo(0, 0); ctx.lineTo(-7, -4); ctx.stroke();
+    ctx.lineCap = "round"; ctx.lineJoin = "round";
+    ctx.strokeStyle = "#ffffff66"; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(-42, 0); ctx.lineTo(-26, 0); ctx.stroke();
+    ctx.strokeStyle = "#1b1423"; ctx.lineWidth = 5.5;
+    ctx.beginPath(); ctx.moveTo(-28, 0); ctx.lineTo(2, 0); ctx.stroke();
+    ctx.strokeStyle = "#f4dfb6"; ctx.lineWidth = 2.6;
+    ctx.beginPath(); ctx.moveTo(-28, 0); ctx.lineTo(0, 0); ctx.stroke();
+    ctx.fillStyle = "#e8f2f5"; ctx.strokeStyle = "#1b1423"; ctx.lineWidth = 1.8;
+    ctx.beginPath(); ctx.moveTo(4, 0); ctx.lineTo(-7, -5); ctx.lineTo(-5, 0); ctx.lineTo(-7, 5); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = "#d94b3d";
+    ctx.beginPath(); ctx.moveTo(-26, 0); ctx.lineTo(-32, -4); ctx.lineTo(-29, 0); ctx.lineTo(-32, 4); ctx.closePath(); ctx.fill();
     ctx.restore();
   }
   if (boss.invulnerable < 1.2 && (boss.invulnerable === 0 || Math.floor(boss.invulnerable * 8) % 2 === 0)) {
@@ -615,8 +685,13 @@ function drawBoss() {
     ctx.translate(boss.playerX - player.x, boss.playerY - 58 - player.y);
     drawPlayer(boss.playerY >= 390);
     ctx.restore();
-    ctx.strokeStyle = "#d5b286"; ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.arc(boss.playerX + 32, boss.playerY - 35, 18, -1.2, 1.2); ctx.stroke();
+    ctx.save();
+    ctx.lineCap = "round";
+    ctx.strokeStyle = "#1b1423"; ctx.lineWidth = 6.5;
+    ctx.beginPath(); ctx.arc(boss.playerX + 32, boss.playerY - 35, 19, -1.18, 1.18); ctx.stroke();
+    ctx.strokeStyle = "#dfa86e"; ctx.lineWidth = 3.2;
+    ctx.beginPath(); ctx.arc(boss.playerX + 32, boss.playerY - 35, 19, -1.18, 1.18); ctx.stroke();
+    ctx.restore();
   }
   if (boss.invulnerable > 0) {
     ctx.strokeStyle = "#efd59a"; ctx.lineWidth = 3;

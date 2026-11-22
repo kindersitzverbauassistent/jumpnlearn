@@ -3,8 +3,22 @@
 window.UnderwaterGame = (() => {
   const canvas = document.getElementById("uw-canvas");
   const ctx = canvas.getContext("2d");
-  const W = canvas.width;
-  const H = canvas.height;
+  const W = 960;
+  const H = 540;
+  let uwScale = 2;
+  function syncUwResolution() {
+    const dpr = window.devicePixelRatio || 1;
+    const scale = Math.min(3, Math.max(2, dpr * 1.25));
+    const rw = Math.round(W * scale);
+    const rh = Math.round(H * scale);
+    if (canvas.width !== rw || canvas.height !== rh) {
+      canvas.width = rw;
+      canvas.height = rh;
+    }
+    uwScale = scale;
+  }
+  syncUwResolution();
+  window.addEventListener("resize", syncUwResolution);
 
   const screens = {
     start: document.getElementById("uw-overlay-start"),
@@ -355,15 +369,20 @@ window.UnderwaterGame = (() => {
     }
   }
 
+  function spawnPopup(x, y, text, color = "#ffd23e") {
+    popups.push({ x, y, text, color, life: 1.0, maxLife: 1.0, tilt: rnd(-0.12, 0.12) });
+  }
+
   function explodeAt(x, y) {
-    for (let k = 0; k < 14; k++) {
+    for (let k = 0; k < 16; k++) {
       parts.push({
         x,
         y,
-        vx: rnd(-130, 130),
-        vy: rnd(-130, 130),
-        life: rnd(0.25, 0.6),
-        c: pick(["#ff3860", "#ff8c42", "#ffd23e"]),
+        vx: rnd(-145, 145),
+        vy: rnd(-145, 145),
+        r: rnd(3.5, 7),
+        life: rnd(0.28, 0.65),
+        c: pick(["#ff4b6e", "#ff9e44", "#ffe156", "#ffffff"]),
       });
     }
   }
@@ -393,11 +412,12 @@ window.UnderwaterGame = (() => {
   let airWarn = 0;
   let high = 0;
 
-  const player = { x: 140, y: H / 2, r: 16, speed: 200 };
+  const player = { x: 140, y: H / 2, r: 16, speed: 200, tilt: 0, wakeTimer: 0 };
   let enemies = [];
   let fish = [];
   let torps = [];
   let parts = [];
+  let popups = [];
   let lifeTimer = LIFE_FISH_EVERY * 0.6;
   let colTop = [];
   let colBot = [];
@@ -406,8 +426,8 @@ window.UnderwaterGame = (() => {
   let fishTimer = 1;
 
   const bubbles = [];
-  for (let i = 0; i < 26; i++) {
-    bubbles.push({ x: rnd(0, W), y: rnd(0, H), r: rnd(1.5, 4), spd: rnd(12, 34) });
+  for (let i = 0; i < 28; i++) {
+    bubbles.push({ x: rnd(0, W), y: rnd(0, H), r: rnd(1.8, 5), spd: rnd(14, 38) });
   }
   const fishBubbles = [];
 
@@ -528,6 +548,7 @@ window.UnderwaterGame = (() => {
     fish = [];
     torps = [];
     parts = [];
+    popups = [];
     fishBubbles.length = 0;
     recentWordIds = [];
     lcWordId = null;
@@ -542,6 +563,9 @@ window.UnderwaterGame = (() => {
     fishTimer = 1;
     player.x = 140;
     player.y = H / 2;
+    player.tilt = 0;
+    player.wakeTimer = 0;
+    syncUwResolution();
     high = typeof topUnderwaterHighscore === "function" ? topUnderwaterHighscore() : 0;
     newPrompt();
     hideAllScreens();
@@ -754,6 +778,8 @@ window.UnderwaterGame = (() => {
     if (invuln > 0) return;
     lives--;
     invuln = INVULN;
+    explodeAt(player.x, player.y);
+    spawnPopup(player.x, player.y - 24, "AUTSCH!", "#ff6b81");
     sfx("hurt");
     if (lives <= 0) triggerLastChance();
   }
@@ -802,6 +828,19 @@ window.UnderwaterGame = (() => {
     }
     player.x = Math.max(40, Math.min(W - 40, player.x + dx * player.speed * dt));
     player.y = Math.max(40, Math.min(H - 40, player.y + dy * player.speed * dt));
+    player.tilt += (dy * 0.22 - player.tilt) * Math.min(1, dt * 10);
+    player.wakeTimer -= dt;
+    if (player.wakeTimer <= 0) {
+      player.wakeTimer = 0.08;
+      fishBubbles.push({
+        x: player.x - 36,
+        y: player.y + rnd(-4, 4),
+        r: rnd(1.5, 3.6),
+        spd: rnd(20, 42),
+        ph: rnd(0, 6.28),
+        life: rnd(0.8, 1.5),
+      });
+    }
 
     const i0 = Math.max(0, Math.floor((player.x - player.r + scroll) / COLW));
     const i1 = Math.floor((player.x + player.r + scroll) / COLW);
@@ -926,6 +965,7 @@ window.UnderwaterGame = (() => {
           if (circleRect(t.x, t.y, 5, e.x - 11, e.y - 7, 22, 14)) {
             enemies.splice(j, 1);
             score += 50;
+            spawnPopup(e.x, e.y - 16, "+50 BOOM!", "#ffd23e");
             dead = true;
             break;
           }
@@ -937,12 +977,14 @@ window.UnderwaterGame = (() => {
           if (circleRect(t.x, t.y, 5, f.x - 10, f.y - 7, 20, 14)) {
             if (f.kind === "life") {
               score += 25;
+              spawnPopup(f.x, f.y - 18, "+25", "#7effb2");
               sfx("coin");
             } else if (f.correct) {
               score += 100;
               air = Math.min(AIR_MAX, air + AIR_REFILL);
               if (f.lang === "en") speakWord(f.label);
               recordSharedAnswer(f.wordId, true);
+              spawnPopup(f.x, f.y - 18, "+100 & LUFT!", "#7effb2");
               sfx("correct");
               newPrompt();
             } else {
@@ -951,6 +993,7 @@ window.UnderwaterGame = (() => {
               if (f.lang === "en") speakWord(f.label);
               recordSharedAnswer(f.wordId, false);
               explodeAt(f.x, f.y);
+              spawnPopup(f.x, f.y - 18, "FALSCH!", "#ff6b81");
               sfx("wrong");
             }
             fish.splice(j, 1);
@@ -960,14 +1003,15 @@ window.UnderwaterGame = (() => {
         }
       }
       if (dead) {
-        for (let k = 0; k < 10; k++) {
+        for (let k = 0; k < 12; k++) {
           parts.push({
             x: t.x,
             y: t.y,
-            vx: rnd(-90, 90),
-            vy: rnd(-90, 90),
-            life: rnd(0.2, 0.5),
-            c: pick(["#ffd23e", "#ff8c42", "#39e8ff"]),
+            vx: rnd(-100, 100),
+            vy: rnd(-100, 100),
+            r: rnd(3, 6),
+            life: rnd(0.22, 0.52),
+            c: pick(["#ffd23e", "#ff8c42", "#39e8ff", "#ffffff"]),
           });
         }
         if (!(t.life <= 0.001 || t.x < -20 || t.x > W + 20 || t.y < -20 || t.y > H + 20)) {
@@ -1012,6 +1056,7 @@ window.UnderwaterGame = (() => {
       if (Math.hypot(player.x - f.x, player.y - f.y) < player.r + 12) {
         if (f.kind === "life") {
           score += 50;
+          spawnPopup(f.x, f.y - 20, "EXTRA LEBEN?", "#7effb2");
           sfx("start");
           triggerLifeQuestion();
         } else if (f.correct) {
@@ -1019,6 +1064,7 @@ window.UnderwaterGame = (() => {
           air = Math.min(AIR_MAX, air + AIR_REFILL);
           if (f.lang === "en" && !f.spoke) speakWord(f.label);
           recordSharedAnswer(f.wordId, true);
+          spawnPopup(f.x, f.y - 20, "+100 & LUFT!", "#7effb2");
           sfx("correct");
           newPrompt();
         } else {
@@ -1027,6 +1073,7 @@ window.UnderwaterGame = (() => {
           if (f.lang === "en" && !f.spoke) speakWord(f.label);
           recordSharedAnswer(f.wordId, false);
           explodeAt(f.x, f.y);
+          spawnPopup(f.x, f.y - 20, "AUTSCH!", "#ff6b81");
           sfx("wrong");
           armAir();
         }
@@ -1042,6 +1089,13 @@ window.UnderwaterGame = (() => {
       if (p.life <= 0) parts.splice(i, 1);
     }
 
+    for (let i = popups.length - 1; i >= 0; i--) {
+      const pop = popups[i];
+      pop.y -= 38 * dt;
+      pop.life -= dt;
+      if (pop.life <= 0) popups.splice(i, 1);
+    }
+
     for (const b of bubbles) {
       b.y -= b.spd * dt;
       if (b.y < -10) {
@@ -1052,146 +1106,515 @@ window.UnderwaterGame = (() => {
     stepFishBubbles(dt);
   }
 
-  /* ---------- Draw ---------- */
-  function px(x, y, w, h, c) {
-    ctx.fillStyle = c;
-    ctx.fillRect(x, y, w, h);
-  }
+  /* ---------- Draw (HiDPI Comic Vector Style) ---------- */
+  const INK = "#071726";
+  const FISH_PALETTES = [
+    { body: "#2cd4ff", shade: "#0d8dc4", fin: "#ffd23e" },
+    { body: "#ff9b42", shade: "#d95b26", fin: "#ffe375" },
+    { body: "#a77bff", shade: "#6d42cc", fin: "#5df2d6" },
+    { body: "#45e6b0", shade: "#149c75", fin: "#ffdf6b" },
+  ];
 
   function drawSub(x, y) {
-    const bob = Math.round(Math.sin(elapsed * 2.2) * 1.5);
-    y += bob;
-    px(x - 28, y - 14, 56, 28, "#1b2a3a");
-    px(x - 26, y - 12, 52, 24, "#f8b400");
-    px(x - 26, y - 12, 52, 5, "#ffd23e");
-    px(x - 26, y + 7, 52, 5, "#c98a00");
-    for (let k = 0; k < 5; k++) px(x - 22 + k * 10, y - 7, 2, 12, "#c98a00");
-    px(x - 6, y - 20, 12, 8, "#f8b400");
-    px(x - 6, y - 20, 12, 2, "#ffd23e");
-    px(x - 2, y - 26, 4, 6, "#c98a00");
-    px(x - 2, y - 26, 6, 2, "#c98a00");
-    px(x + 2, y - 6, 10, 12, "#7defff");
-    px(x + 4, y - 4, 6, 8, "#0a2438");
-    px(x + 3, y - 5, 2, 2, "#d9f6ff");
-    px(x - 16, y - 6, 8, 10, "#7defff");
-    px(x - 14, y - 4, 4, 6, "#0a2438");
-    px(x - 30, y - 4, 4, 8, "#c98a00");
-    px(x - 34, y - 2 + Math.round(Math.sin(elapsed * 14) * 3), 4, 4, "#8a6a00");
-    px(x - 30, y + 10, 10, 3, "#1b2a3a");
+    const bob = Math.sin(elapsed * 2.6) * 2.5;
+    ctx.save();
+    ctx.translate(x, y + bob);
+    ctx.rotate(player.tilt || 0);
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
+
+    // Soft underwater headlight cone
+    const cone = ctx.createLinearGradient(26, 0, 220, 0);
+    cone.addColorStop(0, "rgba(180, 248, 255, 0.24)");
+    cone.addColorStop(1, "rgba(180, 248, 255, 0)");
+    ctx.fillStyle = cone;
+    ctx.beginPath();
+    ctx.moveTo(26, -6);
+    ctx.lineTo(220, -58);
+    ctx.lineTo(220, 58);
+    ctx.lineTo(26, 6);
+    ctx.closePath();
+    ctx.fill();
+
+    // Spinning brass propeller
+    const propSpin = Math.sin(elapsed * 20);
+    ctx.fillStyle = "#d99216";
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.ellipse(-36, 0, 4.5, Math.max(3, Math.abs(propSpin) * 11), 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // Tail fin & rudder
+    ctx.fillStyle = "#e08700";
+    ctx.beginPath();
+    ctx.moveTo(-22, -7);
+    ctx.lineTo(-34, -14);
+    ctx.lineTo(-32, 14);
+    ctx.lineTo(-22, 7);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Periscope & conning tower
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.moveTo(-1, -20);
+    ctx.lineTo(-1, -28);
+    ctx.lineTo(7, -28);
+    ctx.stroke();
+    ctx.strokeStyle = "#f2a900";
+    ctx.lineWidth = 2.4;
+    ctx.stroke();
+    ctx.fillStyle = "#7ef2ff";
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.arc(8, -28, 2.8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = "#f8b400";
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 2.6;
+    ctx.beginPath();
+    ctx.roundRect(-10, -22, 18, 12, [6, 6, 0, 0]);
+    ctx.fill();
+    ctx.stroke();
+
+    // Main comic submarine hull
+    const hullGrad = ctx.createLinearGradient(0, -16, 0, 16);
+    hullGrad.addColorStop(0, "#ffe45e");
+    hullGrad.addColorStop(0.55, "#f8b400");
+    hullGrad.addColorStop(1, "#c77800");
+    ctx.fillStyle = hullGrad;
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 2.8;
+    ctx.beginPath();
+    ctx.roundRect(-29, -15, 58, 30, 15);
+    ctx.fill();
+    ctx.stroke();
+
+    // Top comic gloss streak & center riveted stripe
+    ctx.fillStyle = "rgba(255, 255, 255, 0.55)";
+    ctx.beginPath();
+    ctx.roundRect(-20, -12, 38, 4.5, 3);
+    ctx.fill();
+    ctx.strokeStyle = "#b86b00";
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    ctx.moveTo(-26, 2);
+    ctx.lineTo(26, 2);
+    ctx.stroke();
+
+    // Side small porthole
+    ctx.fillStyle = "#0e2f47";
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(-14, -2, 5.2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = "#8ceeff";
+    ctx.beginPath();
+    ctx.arc(-15.5, -3.5, 1.8, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Main front porthole with Franzo peeking inside
+    ctx.fillStyle = "#0b2438";
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 2.4;
+    ctx.beginPath();
+    ctx.arc(8, -1, 8.8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    // Little captain Franzo face + diving goggles
+    ctx.fillStyle = "#f2c19b";
+    ctx.beginPath();
+    ctx.arc(8, 0.5, 5.2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#39e8ff";
+    ctx.fillRect(5, -2.2, 6.5, 3);
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.65)";
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.arc(6.5, -4, 4, Math.PI * 1.1, Math.PI * 1.65);
+    ctx.stroke();
+
+    // Front headlight bulb
+    ctx.fillStyle = "#fff6b8";
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(28, 0, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.restore();
   }
 
   function drawEnemyFish(e) {
-    const c = e.col;
-    const tail = Math.round(Math.sin(e.ph) * 2);
-    px(e.x - 10, e.y - 6, 20, 12, c);
-    px(e.x - 10, e.y - 6, 20, 3, "#ffffff");
-    px(e.x - 10, e.y + 3, 20, 3, "#00000022");
-    for (let k = 0; k < 3; k++) px(e.x - 4 + k * 5, e.y - 3, 2, 8, "#00000033");
-    px(e.x + 8, e.y - 5 + tail, 6, 10, c);
-    px(e.x + 10, e.y - 3 + tail, 4, 6, "#ffffff");
-    px(e.x - 2, e.y - 8, 6, 3, c);
-    px(e.x - 8, e.y - 4, 3, 3, "#ffffff");
-    px(e.x - 7, e.y - 3, 2, 2, "#02121f");
-    px(e.x - 11, e.y + 1, 3, 2, "#ffffff");
+    const tailWag = Math.sin(e.ph * 2.2) * 4;
+    ctx.save();
+    ctx.translate(e.x, e.y);
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
+
+    // Dorsal & tail fins
+    ctx.fillStyle = e.col;
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 2.4;
+    ctx.beginPath();
+    ctx.moveTo(9, 0);
+    ctx.lineTo(20, -8 + tailWag * 0.6);
+    ctx.lineTo(17, tailWag * 0.3);
+    ctx.lineTo(20, 8 + tailWag * 0.6);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Spiky top fin
+    ctx.beginPath();
+    ctx.moveTo(-4, -8);
+    ctx.lineTo(0, -15);
+    ctx.lineTo(5, -8);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Plump angry comic body
+    const bodyGrad = ctx.createLinearGradient(0, -10, 0, 10);
+    bodyGrad.addColorStop(0, "#ffffff44");
+    bodyGrad.addColorStop(0.25, e.col);
+    bodyGrad.addColorStop(1, "#38122b");
+    ctx.fillStyle = e.col;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 13.5, 9.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = bodyGrad;
+    ctx.fill();
+    ctx.stroke();
+
+    // Belly stripes
+    ctx.strokeStyle = "rgba(10, 18, 32, 0.35)";
+    ctx.lineWidth = 2;
+    for (let k = -3; k <= 5; k += 4) {
+      ctx.beginPath();
+      ctx.moveTo(k, -6);
+      ctx.lineTo(k + 1, 6);
+      ctx.stroke();
+    }
+
+    // Angry comic eye + furrowed brow
+    ctx.fillStyle = "#ffffff";
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.arc(-6, -2, 3.6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = INK;
+    ctx.beginPath();
+    ctx.arc(-7, -1.8, 1.7, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.moveTo(-10, -6.5);
+    ctx.lineTo(-3, -4);
+    ctx.stroke();
+
+    // Little toothy frown
+    ctx.fillStyle = "#ffffff";
+    ctx.beginPath();
+    ctx.moveTo(-12, 3);
+    ctx.lineTo(-9, 1);
+    ctx.lineTo(-7, 4);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.restore();
   }
 
   function drawLabelFish(f) {
-    if (f.kind === "life") {
-      px(f.x - 8, f.y - 5, 16, 10, "#3ee86a");
-      px(f.x + 8, f.y - 4, 5, 8, "#3ee86a");
-      px(f.x - 6, f.y - 3, 3, 3, "#02121f");
-      drawHeart(f.x - 3, f.y - 14);
-      ctx.textAlign = "left";
+    const wag = Math.sin(f.ph * 3.4) * 3.5;
+    const isLife = f.kind === "life";
+    let palIdx = 0;
+    if (!isLife && f.label) {
+      for (let i = 0; i < f.label.length; i++) palIdx += f.label.charCodeAt(i);
+    }
+    const pal = isLife
+      ? { body: "#4df585", shade: "#1aa34a", fin: "#ffe156" }
+      : FISH_PALETTES[palIdx % FISH_PALETTES.length];
+
+    ctx.save();
+    ctx.translate(f.x, f.y);
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
+
+    // Tail fin
+    ctx.fillStyle = pal.fin;
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.moveTo(8, 0);
+    ctx.lineTo(18, -7 + wag * 0.7);
+    ctx.quadraticCurveTo(14, wag * 0.3, 18, 7 + wag * 0.7);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Cute dorsal fin
+    ctx.beginPath();
+    ctx.moveTo(-3, -7);
+    ctx.quadraticCurveTo(2, -14, 7, -6);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Plump comic fish body
+    const grad = ctx.createLinearGradient(0, -9, 0, 9);
+    grad.addColorStop(0, pal.body);
+    grad.addColorStop(1, pal.shade);
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 12, 8.2, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // Specular highlight
+    ctx.fillStyle = "rgba(255, 255, 255, 0.45)";
+    ctx.beginPath();
+    ctx.ellipse(-2, -4, 6, 2.2, -0.1, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Side flapping fin
+    ctx.fillStyle = pal.fin;
+    ctx.beginPath();
+    ctx.ellipse(1, 2, 4, 2.4, Math.sin(f.ph * 5) * 0.4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // Big cheerful cartoon eye
+    ctx.fillStyle = "#ffffff";
+    ctx.beginPath();
+    ctx.arc(-5.5, -1.5, 3.3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = INK;
+    ctx.beginPath();
+    ctx.arc(-6.3, -1.5, 1.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(-6.8, -2.5, 1, 1);
+
+    ctx.restore();
+
+    if (isLife) {
+      drawHeart(f.x, f.y - 21, 1.15);
       return;
     }
-    px(f.x - 8, f.y - 5, 16, 10, "#3ec9ff");
-    px(f.x + 8, f.y - 4, 5, 8, "#3ec9ff");
-    px(f.x - 6, f.y - 3, 3, 3, "#02121f");
-    ctx.font = '13px "Courier New", monospace';
+
+    // Crisp comic label banner above vocab fish
+    ctx.save();
+    ctx.font = '800 13px "Plus Jakarta Sans", system-ui, sans-serif';
+    const textW = ctx.measureText(f.label).width;
+    const bw = Math.max(46, textW + 16);
+    const bh = 22;
+    const bx = f.x - bw / 2;
+    const by = f.y - 35;
+
+    ctx.fillStyle = "rgba(4, 15, 28, 0.92)";
+    ctx.beginPath();
+    ctx.roundRect(bx, by, bw, bh, 7);
+    ctx.fill();
+
+    ctx.strokeStyle = f.hovered ? "#ffe156" : "#4ee2ff";
+    ctx.lineWidth = f.hovered ? 2.4 : 1.8;
+    ctx.stroke();
+
+    ctx.fillStyle = f.hovered ? "#fff5b8" : "#ebfbff";
     ctx.textAlign = "center";
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = "#02121f";
-    ctx.fillStyle = "#d9f6ff";
-    ctx.strokeText(f.label, f.x, f.y - 16);
-    ctx.fillText(f.label, f.x, f.y - 16);
-    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.fillText(f.label, f.x, by + bh / 2 + 0.5);
+    ctx.restore();
   }
 
-  function drawHeart(x, y) {
-    px(x + 1, y, 2, 1, "#ff3860");
-    px(x + 4, y, 2, 1, "#ff3860");
-    px(x, y + 1, 7, 2, "#ff3860");
-    px(x + 1, y + 3, 5, 1, "#ff3860");
-    px(x + 2, y + 4, 3, 1, "#ff3860");
-    px(x + 3, y + 5, 1, 1, "#ff3860");
+  function drawHeart(cx, cy, scale = 1) {
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.scale(scale, scale);
+    ctx.fillStyle = "#ff456e";
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, 6);
+    ctx.bezierCurveTo(-8, 0, -9, -7, -4, -7);
+    ctx.bezierCurveTo(-1.5, -7, 0, -4.5, 0, -3.5);
+    ctx.bezierCurveTo(0, -4.5, 1.5, -7, 4, -7);
+    ctx.bezierCurveTo(9, -7, 8, 0, 0, 6);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = "rgba(255, 255, 255, 0.55)";
+    ctx.beginPath();
+    ctx.arc(-3.2, -3.8, 1.4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
   }
 
   function draw() {
+    syncUwResolution();
+    ctx.setTransform(uwScale, 0, 0, uwScale, 0, 0);
+
+    // Rich comic deep-sea gradient
     const grad = ctx.createLinearGradient(0, 0, 0, H);
-    grad.addColorStop(0, "#04263e");
-    grad.addColorStop(1, "#020a14");
+    grad.addColorStop(0, "#08446b");
+    grad.addColorStop(0.5, "#04233d");
+    grad.addColorStop(1, "#020e1c");
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, W, H);
 
-    ctx.fillStyle = "rgba(57,232,255,0.05)";
-    for (let k = 0; k < 3; k++) {
-      const bx = ((k * 340 - scroll * 0.3) % (W + 400)) - 200;
+    // Parallax underwater cliff silhouettes in deep background
+    ctx.save();
+    const bgShift = (scroll * 0.22) % 320;
+    ctx.fillStyle = "rgba(8, 55, 84, 0.5)";
+    ctx.beginPath();
+    ctx.moveTo(-320, H);
+    for (let x = -320 - bgShift; x <= W + 320; x += 160) {
+      ctx.quadraticCurveTo(x + 80, H * 0.55 + Math.sin(x * 0.02) * 36, x + 160, H * 0.72);
+    }
+    ctx.lineTo(W + 320, H);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+
+    // Volumetric sun shafts
+    ctx.fillStyle = "rgba(89, 232, 255, 0.065)";
+    for (let k = 0; k < 4; k++) {
+      const bx = ((k * 310 - scroll * 0.3) % (W + 400)) - 180;
       ctx.beginPath();
       ctx.moveTo(bx, 0);
-      ctx.lineTo(bx + 60, 0);
-      ctx.lineTo(bx + 160, H);
-      ctx.lineTo(bx + 60, H);
+      ctx.lineTo(bx + 70, 0);
+      ctx.lineTo(bx + 185, H);
+      ctx.lineTo(bx + 70, H);
+      ctx.closePath();
       ctx.fill();
     }
 
-    ctx.fillStyle = "rgba(125,239,255,0.25)";
+    // Crisp ambient bubbles with highlight dot
     for (const b of bubbles) {
+      ctx.strokeStyle = "rgba(155, 244, 255, 0.45)";
+      ctx.fillStyle = "rgba(125, 239, 255, 0.14)";
+      ctx.lineWidth = 1.4;
       ctx.beginPath();
-      ctx.arc(b.x, b.y, b.r, 0, 6.283);
+      ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
+      ctx.beginPath();
+      ctx.arc(b.x - b.r * 0.35, b.y - b.r * 0.35, Math.max(0.8, b.r * 0.28), 0, Math.PI * 2);
       ctx.fill();
     }
 
-    const i0 = Math.max(0, Math.floor(scroll / COLW) - 1);
-    const i1 = Math.floor((scroll + W) / COLW) + 1;
+    // Smooth comic cave rock ceiling and floor matching colTop / colBot
+    const i0 = Math.max(0, Math.floor(scroll / COLW) - 2);
+    const i1 = Math.floor((scroll + W) / COLW) + 2;
     ensureCols(i1);
+
+    // Top cave rock mass
+    const topGrad = ctx.createLinearGradient(0, 0, 0, H * 0.42);
+    topGrad.addColorStop(0, "#0c2b40");
+    topGrad.addColorStop(1, "#164e70");
+    ctx.fillStyle = topGrad;
+    ctx.beginPath();
+    ctx.moveTo((i0 - 1) * COLW - scroll, -10);
     for (let i = i0; i <= i1; i++) {
-      const x = Math.round(i * COLW - scroll);
+      ctx.lineTo(i * COLW - scroll + COLW * 0.5, colTop[i]);
+    }
+    ctx.lineTo((i1 + 1) * COLW - scroll, -10);
+    ctx.closePath();
+    ctx.fill();
+
+    // Top cave comic water-rim + ink outline
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
+    ctx.strokeStyle = "#2b89b8";
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    for (let i = i0; i <= i1; i++) {
+      const px0 = i * COLW - scroll + COLW * 0.5;
+      if (i === i0) ctx.moveTo(px0, colTop[i]);
+      else ctx.lineTo(px0, colTop[i]);
+    }
+    ctx.stroke();
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 2.8;
+    ctx.stroke();
+
+    // Bottom cave rock mass
+    const botGrad = ctx.createLinearGradient(0, H * 0.58, 0, H);
+    botGrad.addColorStop(0, "#164e70");
+    botGrad.addColorStop(1, "#0b2538");
+    ctx.fillStyle = botGrad;
+    ctx.beginPath();
+    ctx.moveTo((i0 - 1) * COLW - scroll, H + 10);
+    for (let i = i0; i <= i1; i++) {
+      ctx.lineTo(i * COLW - scroll + COLW * 0.5, colBot[i]);
+    }
+    ctx.lineTo((i1 + 1) * COLW - scroll, H + 10);
+    ctx.closePath();
+    ctx.fill();
+
+    // Bottom cave comic water-rim + ink outline
+    ctx.strokeStyle = "#2b89b8";
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    for (let i = i0; i <= i1; i++) {
+      const px0 = i * COLW - scroll + COLW * 0.5;
+      if (i === i0) ctx.moveTo(px0, colBot[i]);
+      else ctx.lineTo(px0, colBot[i]);
+    }
+    ctx.stroke();
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 2.8;
+    ctx.stroke();
+
+    // Swaying comic kelp & vibrant reef corals along cave walls
+    for (let i = i0; i <= i1; i++) {
+      const x = i * COLW - scroll + COLW * 0.5;
       const t = colTop[i];
       const b = colBot[i];
       const s1 = (i * 7919) % 97;
       const s2 = (i * 104729) % 89;
-      px(x - 1, 0, COLW + 2, t, "#0e2f45");
-      px(x - 1, 0, COLW + 2, Math.round(t * 0.55), "#123a52");
-      px(x - 1, t - 8, COLW + 2, 3, "#26688f");
-      px(x - 1, t - 5, COLW + 2, 5, "#1d5578");
-      px(x - 1, b, COLW + 2, H - b + 1, "#0e2f45");
-      px(x - 1, b + Math.round((H - b) * 0.55), COLW + 2, H - b, "#123a52");
-      px(x - 1, b, COLW + 2, 5, "#1d5578");
-      px(x - 1, b + 5, COLW + 2, 3, "#26688f");
-      px(x + (s1 % COLW), Math.max(2, t - 12 - (s1 % 10)), 3, 3, "#1d5578");
-      px(x + (s2 % COLW), Math.min(H - 4, b + 9 + (s2 % 10)), 3, 3, "#1d5578");
-      px(x + ((s1 + s2) % COLW), Math.max(4, t - 22 - (s2 % 12)), 2, 2, "#26688f");
-      px(x + ((s1 * 3 + s2) % COLW), Math.min(H - 6, b + 18 + (s1 % 14)), 2, 2, "#26688f");
-      if (s1 % 5 === 0) {
-        px(x + 3, t, 7, 4 + (s1 % 6), "#123a52");
-        px(x + 4, t + 4, 5, 3 + (s1 % 5), "#0e2f45");
-      }
-      if (s2 % 5 === 0) {
-        px(x + 4, b - 5 - (s2 % 6), 7, 5 + (s2 % 6), "#123a52");
-      }
       if (s1 % 9 === 0) {
-        const h = 26 + (s1 % 5) * 8;
-        for (let k = 0; k < h; k += 6) {
-          const sway = Math.round(Math.sin(elapsed * 1.4 + k * 0.2 + i) * 2);
-          px(x + 6 + sway, t + 2 + k, 3, 6, k % 12 === 0 ? "#1f7a4a" : "#16603c");
-        }
+        const h = 30 + (s1 % 5) * 8;
+        const sway = Math.sin(elapsed * 1.8 + i) * 7;
+        ctx.strokeStyle = INK;
+        ctx.lineWidth = 6;
+        ctx.beginPath();
+        ctx.moveTo(x, t);
+        ctx.quadraticCurveTo(x + sway * 0.5, t + h * 0.5, x + sway, t + h);
+        ctx.stroke();
+        ctx.strokeStyle = "#22a866";
+        ctx.lineWidth = 3.2;
+        ctx.stroke();
       }
       if (s2 % 8 === 0) {
-        const cc = ["#c94f6d", "#e07a5f", "#8e4a9e"][s2 % 3];
-        px(x + 5, b - 10, 3, 10, cc);
-        px(x + 2, b - 8, 3, 3, cc);
-        px(x + 8, b - 7, 3, 7, cc);
-        px(x + 10, b - 5, 3, 5, cc);
+        const cc = ["#ff5c8a", "#ff8e5e", "#b56eff"][s2 % 3];
+        ctx.strokeStyle = INK;
+        ctx.lineWidth = 6.5;
+        ctx.beginPath();
+        ctx.moveTo(x, b + 2);
+        ctx.lineTo(x - 4, b - 15);
+        ctx.moveTo(x, b - 6);
+        ctx.lineTo(x + 7, b - 14);
+        ctx.stroke();
+        ctx.strokeStyle = cc;
+        ctx.lineWidth = 3.4;
+        ctx.stroke();
       }
     }
 
@@ -1199,42 +1622,67 @@ window.UnderwaterGame = (() => {
 
     for (const b of fishBubbles) {
       ctx.beginPath();
-      ctx.arc(b.x, b.y, b.r, 0, 6.283);
-      ctx.strokeStyle = "rgba(180,240,255,0.75)";
-      ctx.lineWidth = 1;
+      ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(180, 244, 255, 0.25)";
+      ctx.fill();
+      ctx.strokeStyle = "rgba(180, 244, 255, 0.85)";
+      ctx.lineWidth = 1.4;
       ctx.stroke();
-      px(b.x - b.r * 0.4, b.y - b.r * 0.4, 1, 1, "#e8faff");
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath();
+      ctx.arc(b.x - b.r * 0.35, b.y - b.r * 0.35, Math.max(0.7, b.r * 0.25), 0, Math.PI * 2);
+      ctx.fill();
     }
 
     for (const e of enemies) drawEnemyFish(e);
 
+    // Comic torpedoes
     for (const t of torps) {
       ctx.save();
-      ctx.translate(Math.round(t.x), Math.round(t.y));
+      ctx.translate(t.x, t.y);
       ctx.rotate(Math.atan2(t.vy, t.vx));
-      px(-6, -2, 10, 4, "#ffd23e");
-      px(4, -1, 3, 2, "#ff8c42");
-      px(-7, -1, 2, 2, "#c98a00");
+      ctx.fillStyle = "#ffe156";
+      ctx.strokeStyle = INK;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.roundRect(-8, -3.5, 14, 7, 3.5);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = "#ff456e";
+      ctx.beginPath();
+      ctx.arc(6, 0, 3.2, -Math.PI * 0.5, Math.PI * 0.5);
+      ctx.fill();
+      ctx.stroke();
       ctx.restore();
     }
 
     if (mode === "play") {
-      const ax = Math.round(aim.x);
-      const ay = Math.round(aim.y);
-      ctx.strokeStyle = "rgba(57,232,255,0.85)";
-      ctx.lineWidth = 1;
+      const ax = aim.x;
+      const ay = aim.y;
+      ctx.save();
+      ctx.strokeStyle = INK;
+      ctx.lineWidth = 4;
       ctx.beginPath();
-      ctx.moveTo(ax - 11, ay);
-      ctx.lineTo(ax - 4, ay);
-      ctx.moveTo(ax + 4, ay);
-      ctx.lineTo(ax + 11, ay);
-      ctx.moveTo(ax, ay - 11);
-      ctx.lineTo(ax, ay - 4);
-      ctx.moveTo(ax, ay + 4);
-      ctx.lineTo(ax, ay + 11);
-      ctx.arc(ax, ay, 9, 0, 6.283);
+      ctx.arc(ax, ay, 11, 0, Math.PI * 2);
       ctx.stroke();
-      px(ax - 1, ay - 1, 2, 2, "#ffd23e");
+      ctx.strokeStyle = "#39e8ff";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(ax - 15, ay);
+      ctx.lineTo(ax - 5, ay);
+      ctx.moveTo(ax + 5, ay);
+      ctx.lineTo(ax + 15, ay);
+      ctx.moveTo(ax, ay - 15);
+      ctx.lineTo(ax, ay - 5);
+      ctx.moveTo(ax, ay + 5);
+      ctx.lineTo(ax, ay + 15);
+      ctx.arc(ax, ay, 11, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.fillStyle = "#ffd23e";
+      ctx.beginPath();
+      ctx.arc(ax, ay, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
     }
 
     if (mode === "play" || mode === "lastchance" || mode === "life") {
@@ -1242,38 +1690,129 @@ window.UnderwaterGame = (() => {
       if (!blink) drawSub(player.x, player.y);
     }
 
+    // Ink-ringed comic explosion / splash particles
     for (const p of parts) {
-      ctx.globalAlpha = Math.max(0, p.life * 2);
-      px(p.x, p.y, 3, 3, p.c);
-      ctx.globalAlpha = 1;
+      const alpha = Math.max(0, Math.min(1, p.life * 2));
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = p.c;
+      ctx.strokeStyle = INK;
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, (p.r || 4) * (0.5 + 0.5 * alpha), 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // Floating comic popups
+    for (const pop of popups) {
+      const alpha = Math.max(0, Math.min(1, pop.life / 0.35));
+      const sc = 1 + Math.sin(Math.min(1, (pop.maxLife - pop.life) * 6) * Math.PI * 0.5) * 0.16;
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.translate(pop.x, pop.y);
+      ctx.rotate(pop.tilt);
+      ctx.scale(sc, sc);
+      ctx.font = '900 18px "Plus Jakarta Sans", system-ui, sans-serif';
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.lineJoin = "round";
+      ctx.lineWidth = 5;
+      ctx.strokeStyle = INK;
+      ctx.strokeText(pop.text, 0, 0);
+      ctx.fillStyle = pop.color;
+      ctx.fillText(pop.text, 0, 0);
+      ctx.restore();
     }
 
     if (mode === "play") {
-      ctx.font = '16px "Courier New", monospace';
-      ctx.fillStyle = "#d9f6ff";
-      ctx.fillText(`Punkte: ${score}`, 12, 24);
-      ctx.textAlign = "right";
-      ctx.fillText(`Highscore: ${high}`, W - 12, 24);
-      ctx.textAlign = "center";
-      ctx.fillStyle = "#ffd23e";
-      ctx.fillText(`Übersetzung: ${prompt.src}`, W / 2, 24);
+      // Crisp comic HUD badges
+      ctx.save();
+      ctx.font = '800 15px "Plus Jakarta Sans", system-ui, sans-serif';
+      ctx.fillStyle = "rgba(4, 16, 30, 0.78)";
+      ctx.strokeStyle = "rgba(57, 232, 255, 0.55)";
+      ctx.lineWidth = 1.8;
+
+      // Score pill
+      ctx.beginPath();
+      ctx.roundRect(10, 8, 136, 30, 8);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = "#e6faff";
       ctx.textAlign = "left";
-      const gw = 90;
-      const gx = W - 12 - gw;
-      const gy = H - 22;
+      ctx.textBaseline = "middle";
+      ctx.fillText(`Punkte: ${score}`, 22, 23.5);
+
+      // Prompt center banner
+      const promptText = `Übersetzung: ${prompt.src}`;
+      const pw = Math.max(210, ctx.measureText(promptText).width + 36);
+      ctx.fillStyle = "rgba(4, 16, 30, 0.86)";
+      ctx.strokeStyle = "#ffd23e";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.roundRect(W / 2 - pw / 2, 7, pw, 32, 9);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = "#ffe478";
+      ctx.textAlign = "center";
+      ctx.fillText(promptText, W / 2, 23.5);
+
+      // Highscore pill
+      ctx.fillStyle = "rgba(4, 16, 30, 0.78)";
+      ctx.strokeStyle = "rgba(57, 232, 255, 0.55)";
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.roundRect(W - 166, 8, 156, 30, 8);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = "#e6faff";
+      ctx.textAlign = "right";
+      ctx.fillText(`Highscore: ${high}`, W - 20, 23.5);
+
+      // Glossy Atemluft tank bottom right
+      const gw = 114;
+      const gx = W - 18 - gw;
+      const gy = H - 27;
       const empty = air <= 0;
       const flash = empty && airWarn > 0 && Math.floor(performance.now() / 250) % 2 === 0;
-      px(gx - 2, gy - 2, gw + 4, 14, "#0a2438");
-      px(gx, gy, gw, 10, flash ? "#ff3860" : "#123a52");
+      ctx.fillStyle = "rgba(4, 16, 30, 0.85)";
+      ctx.strokeStyle = INK;
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.roundRect(gx - 3, gy - 3, gw + 6, 18, 7);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = flash ? "#ff3860" : "#123a52";
+      ctx.beginPath();
+      ctx.roundRect(gx, gy, gw, 12, 5);
+      ctx.fill();
       const fill = Math.max(0, Math.min(1, air / AIR_MAX));
-      px(gx, gy, Math.round(gw * fill), 10, "#39e8ff");
-      if (empty) px(gx, gy, gw, 10, flash ? "#ff8c42" : "#ff3860");
-      px(gx + gw + 4, gy + 2, 4, 6, "#c98a00");
-      ctx.font = '10px "Courier New", monospace';
-      ctx.fillStyle = empty && airWarn > 0 ? "#ff3860" : "#d9f6ff";
-      ctx.fillText(empty ? `Atemluft! ${Math.ceil(airWarn)}s` : "Atemluft", gx, gy - 8);
-      ctx.font = '16px "Courier New", monospace';
-      for (let i = 0; i < lives; i++) drawHeart(12 + i * 12, H - 20);
+      if (fill > 0) {
+        const airGrad = ctx.createLinearGradient(gx, gy, gx + gw, gy);
+        airGrad.addColorStop(0, "#1cc8ff");
+        airGrad.addColorStop(1, "#7efaff");
+        ctx.fillStyle = airGrad;
+        ctx.beginPath();
+        ctx.roundRect(gx, gy, Math.max(6, Math.round(gw * fill)), 12, 5);
+        ctx.fill();
+      } else {
+        ctx.fillStyle = flash ? "#ff8c42" : "#ff3860";
+        ctx.beginPath();
+        ctx.roundRect(gx, gy, gw, 12, 5);
+        ctx.fill();
+      }
+      ctx.font = '800 11px "Plus Jakarta Sans", system-ui, sans-serif';
+      ctx.fillStyle = empty && airWarn > 0 ? "#ff6b81" : "#e6faff";
+      ctx.textAlign = "right";
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = INK;
+      const airLabel = empty ? `Atemluft! ${Math.ceil(airWarn)}s` : "Atemluft";
+      ctx.strokeText(airLabel, gx + gw, gy - 9);
+      ctx.fillText(airLabel, gx + gw, gy - 9);
+      ctx.restore();
+
+      for (let i = 0; i < lives; i++) drawHeart(22 + i * 22, H - 22, 1.35);
     }
   }
 
