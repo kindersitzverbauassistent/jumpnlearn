@@ -1300,10 +1300,21 @@ profileSelect.addEventListener("change", () => {
 
 const WortweltenFullscreen = (() => {
   const coarseMedia = window.matchMedia("(pointer: coarse)");
+  const anyCoarseMedia = window.matchMedia("(any-pointer: coarse)");
   let pseudoFullscreen = false;
 
   function isMobileDevice() {
-    return coarseMedia.matches || "ontouchstart" in window || navigator.maxTouchPoints > 0;
+    if (coarseMedia.matches) return true;
+    const hasTouch = anyCoarseMedia.matches || "ontouchstart" in window || navigator.maxTouchPoints > 0;
+    return hasTouch && Math.min(window.innerWidth, window.innerHeight) <= 1024;
+  }
+
+  function syncViewport() {
+    const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+    if (vh > 0) {
+      document.documentElement.style.setProperty("--app-vh", `${Math.round(vh)}px`);
+    }
+    document.body.classList.toggle("is-touch-device", isMobileDevice());
   }
 
   function nativeElement() {
@@ -1324,6 +1335,7 @@ const WortweltenFullscreen = (() => {
 
   function syncUi() {
     const active = isActive();
+    syncViewport();
     document.body.classList.toggle("is-fullscreen", active);
     document.querySelectorAll("[data-fullscreen-toggle]").forEach(btn => {
       btn.setAttribute("aria-pressed", String(active));
@@ -1431,8 +1443,17 @@ const WortweltenFullscreen = (() => {
     });
   });
 
+  window.addEventListener("resize", syncViewport);
+  window.addEventListener("orientationchange", () => {
+    syncViewport();
+    setTimeout(syncViewport, 250);
+  });
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener("resize", syncViewport);
+  }
+
   syncUi();
-  return { isMobileDevice, isActive, enter, exit, toggle, enterIfMobile, unlockOrientation };
+  return { isMobileDevice, isActive, enter, exit, toggle, enterIfMobile, unlockOrientation, syncViewport };
 })();
 window.WortweltenFullscreen = WortweltenFullscreen;
 
@@ -1449,6 +1470,8 @@ startForm.addEventListener("submit", event => {
   underwaterShell.hidden = true;
   gameShell.hidden = false;
   belowGame.hidden = false;
+  window.scrollTo(0, 0);
+  WortweltenFullscreen.syncViewport();
   startGame(run);
   startMusicOnInteraction();
 });
@@ -1463,6 +1486,8 @@ startUnderwaterButton.addEventListener("click", () => {
   gameShell.hidden = true;
   belowGame.hidden = true;
   underwaterShell.hidden = false;
+  window.scrollTo(0, 0);
+  WortweltenFullscreen.syncViewport();
   window.UnderwaterGame.open(name);
 });
 
