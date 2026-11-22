@@ -1298,6 +1298,144 @@ profileSelect.addEventListener("change", () => {
   renderMenu();
 });
 
+const WortweltenFullscreen = (() => {
+  const coarseMedia = window.matchMedia("(pointer: coarse)");
+  let pseudoFullscreen = false;
+
+  function isMobileDevice() {
+    return coarseMedia.matches || "ontouchstart" in window || navigator.maxTouchPoints > 0;
+  }
+
+  function nativeElement() {
+    return document.fullscreenElement || document.webkitFullscreenElement || null;
+  }
+
+  function canUseNative() {
+    const el = document.documentElement;
+    return Boolean(
+      (document.fullscreenEnabled || document.webkitFullscreenEnabled) &&
+      (el.requestFullscreen || el.webkitRequestFullscreen)
+    );
+  }
+
+  function isActive() {
+    return Boolean(nativeElement()) || pseudoFullscreen;
+  }
+
+  function syncUi() {
+    const active = isActive();
+    document.body.classList.toggle("is-fullscreen", active);
+    document.querySelectorAll("[data-fullscreen-toggle]").forEach(btn => {
+      btn.setAttribute("aria-pressed", String(active));
+      btn.textContent = active ? "✕ Vollbild" : "⛶ Vollbild";
+    });
+  }
+
+  function lockLandscapeIfMobile() {
+    if (!isMobileDevice()) return;
+    if (screen.orientation && typeof screen.orientation.lock === "function") {
+      screen.orientation.lock("landscape").catch(() => {});
+    }
+  }
+
+  function unlockOrientation() {
+    if (screen.orientation && typeof screen.orientation.unlock === "function") {
+      try {
+        screen.orientation.unlock();
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+
+  function enter(lockLandscape = false) {
+    const el = document.documentElement;
+    if (canUseNative()) {
+      try {
+        const promise = el.requestFullscreen
+          ? el.requestFullscreen({ navigationUI: "hide" })
+          : el.webkitRequestFullscreen();
+        if (promise && typeof promise.then === "function") {
+          promise
+            .then(() => {
+              pseudoFullscreen = false;
+              if (lockLandscape) lockLandscapeIfMobile();
+              syncUi();
+            })
+            .catch(() => {
+              pseudoFullscreen = true;
+              syncUi();
+            });
+        } else {
+          if (lockLandscape) lockLandscapeIfMobile();
+          syncUi();
+        }
+      } catch {
+        pseudoFullscreen = true;
+        syncUi();
+      }
+    } else {
+      pseudoFullscreen = true;
+      window.scrollTo(0, 1);
+      syncUi();
+    }
+  }
+
+  function exit() {
+    pseudoFullscreen = false;
+    unlockOrientation();
+    const activeEl = nativeElement();
+    if (activeEl) {
+      try {
+        const fn = document.exitFullscreen || document.webkitExitFullscreen;
+        if (fn) {
+          const p = fn.call(document);
+          if (p && typeof p.catch === "function") p.catch(() => {});
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+    syncUi();
+  }
+
+  function toggle(lockLandscape = false) {
+    if (isActive()) exit();
+    else enter(lockLandscape);
+  }
+
+  function enterIfMobile(lockLandscape = true) {
+    if (!isMobileDevice()) return;
+    if (!isActive()) enter(lockLandscape);
+    else if (lockLandscape) lockLandscapeIfMobile();
+  }
+
+  document.addEventListener("fullscreenchange", () => {
+    if (!nativeElement()) {
+      pseudoFullscreen = false;
+      unlockOrientation();
+    }
+    syncUi();
+  });
+  document.addEventListener("webkitfullscreenchange", () => {
+    if (!nativeElement()) {
+      pseudoFullscreen = false;
+      unlockOrientation();
+    }
+    syncUi();
+  });
+
+  document.querySelectorAll("[data-fullscreen-toggle]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      toggle(isMobileDevice());
+    });
+  });
+
+  syncUi();
+  return { isMobileDevice, isActive, enter, exit, toggle, enterIfMobile, unlockOrientation };
+})();
+window.WortweltenFullscreen = WortweltenFullscreen;
+
 startForm.addEventListener("submit", event => {
   event.preventDefault();
   const profile = profileForName(selectedName);
@@ -1306,6 +1444,7 @@ startForm.addEventListener("submit", event => {
   const run = { name, index: 0, score: 0, correctCount: 0, lifeQuarters: 12, lastWordId: null };
   const profiles = appData.profiles.map(item => item === profile ? { ...item, run: null } : item);
   if (!saveAppData({ ...appData, name, profiles })) return;
+  WortweltenFullscreen.enterIfMobile(true);
   startScreen.hidden = true;
   underwaterShell.hidden = true;
   gameShell.hidden = false;
@@ -1319,6 +1458,7 @@ startUnderwaterButton.addEventListener("click", () => {
   if (!dataWritable || !profile || !window.UnderwaterGame) return;
   const name = profile.name;
   if (!saveAppData({ ...appData, name })) return;
+  WortweltenFullscreen.enterIfMobile(true);
   startScreen.hidden = true;
   gameShell.hidden = true;
   belowGame.hidden = true;
@@ -1327,7 +1467,8 @@ startUnderwaterButton.addEventListener("click", () => {
 });
 
 function showMenu() {
-  document.body.classList.remove("playing");
+  document.body.classList.remove("playing", "uw-playing");
+  WortweltenFullscreen.exit();
   updateOrientation();
   startScreen.hidden = false;
   gameShell.hidden = true;

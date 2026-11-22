@@ -19,6 +19,8 @@ window.UnderwaterGame = (() => {
   }
   syncUwResolution();
   window.addEventListener("resize", syncUwResolution);
+  document.addEventListener("fullscreenchange", syncUwResolution);
+  document.addEventListener("webkitfullscreenchange", syncUwResolution);
 
   const screens = {
     start: document.getElementById("uw-overlay-start"),
@@ -44,6 +46,40 @@ window.UnderwaterGame = (() => {
   let lcQuestion = screens.lastchance.querySelector(".uw-q");
   let lcHint = screens.lastchance.querySelector(".uw-hint");
   let lcAnswers = screens.lastchance.querySelector(".uw-answers");
+  let lcInput = screens.lastchance.querySelector(".uw-typing-input");
+
+  ["lastchance", "life"].forEach((kind) => {
+    const scr = screens[kind];
+    const form = scr.querySelector(".uw-typing-form");
+    const input = scr.querySelector(".uw-typing-input");
+    const skipBtn = scr.querySelector(".uw-skip-btn");
+    if (input) {
+      input.addEventListener("input", () => {
+        if (mode !== kind || lcDone) return;
+        lcTyped = input.value;
+        lcRenderTyped();
+      });
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && kind === "life") {
+          e.preventDefault();
+          skipLifeQuestion();
+        }
+      });
+    }
+    if (form) {
+      form.addEventListener("submit", (e) => {
+        e.preventDefault();
+        if (mode !== kind || lcDone) return;
+        if (input) lcTyped = input.value;
+        lcCheck();
+      });
+    }
+    if (skipBtn) {
+      skipBtn.addEventListener("click", () => {
+        if (mode === "life" && !lcDone) skipLifeQuestion();
+      });
+    }
+  });
 
   function showScreen(name) {
     for (const k in screens) screens[k].classList.toggle("active", k === name);
@@ -472,11 +508,43 @@ window.UnderwaterGame = (() => {
     }
   }
 
-  /* ---------- Input ---------- */
+  /* ---------- Input (Keyboard + Mouse + Multi-Touch) ---------- */
   const keys = new Set();
+  const touchDirs = { up: false, down: false, left: false, right: false };
+
+  function resetTouchDirs() {
+    touchDirs.up = false;
+    touchDirs.down = false;
+    touchDirs.left = false;
+    touchDirs.right = false;
+    document.querySelectorAll("[data-uw-control]").forEach((btn) => btn.classList.remove("is-pressed"));
+  }
+
+  function fireTorpedoAt(tx, ty) {
+    if (!active || mode !== "play" || cool > 0) return;
+    aim.x = tx;
+    aim.y = ty;
+    cool = 0.3;
+    const dx = tx - player.x;
+    const dy = ty - player.y;
+    const len = Math.hypot(dx, dy) || 1;
+    torps.push({
+      x: player.x,
+      y: player.y,
+      vx: (dx / len) * TORP_SPEED,
+      vy: (dy / len) * TORP_SPEED,
+      speed: TORP_SPEED,
+      life: 2.4,
+    });
+    sfx("shoot");
+  }
+
   window.addEventListener("keydown", (e) => {
     if (!active) return;
     if (mode === "lastchance" || mode === "life") {
+      if (e.target && e.target.classList && e.target.classList.contains("uw-typing-input")) {
+        return;
+      }
       if (e.key === "Backspace" || e.key === "Enter" || e.key === "Escape") e.preventDefault();
       typeLetter(e);
       return;
@@ -486,13 +554,19 @@ window.UnderwaterGame = (() => {
         e.preventDefault();
       }
       if (e.code === "KeyM" && !e.repeat) bgmToggleMute();
+      if (e.code === "Space" && !e.repeat) {
+        fireTorpedoAt(Math.min(W - 20, player.x + 320), player.y);
+      }
       keys.add(e.code);
     }
   });
   window.addEventListener("keyup", (e) => {
     keys.delete(e.code);
   });
-  window.addEventListener("blur", () => keys.clear());
+  window.addEventListener("blur", () => {
+    keys.clear();
+    resetTouchDirs();
+  });
 
   function canvasCoords(e) {
     const rect = canvas.getBoundingClientRect();
@@ -504,34 +578,72 @@ window.UnderwaterGame = (() => {
 
   const aim = { x: W * 0.7, y: H / 2 };
   const mouse = { x: -999, y: -999 };
-  canvas.addEventListener("mousemove", (e) => {
+  let activeAimPointerId = null;
+
+  canvas.addEventListener("pointermove", (e) => {
     if (!active) return;
+    if (e.pointerType === "touch" && activeAimPointerId !== e.pointerId) return;
     const p = canvasCoords(e);
     aim.x = p.x;
     aim.y = p.y;
     mouse.x = p.x;
     mouse.y = p.y;
   });
-  canvas.addEventListener("click", (e) => {
+
+  canvas.addEventListener("pointerdown", (e) => {
     if (!active || mode !== "play") return;
-    const p = canvasCoords(e);
-    aim.x = p.x;
-    aim.y = p.y;
-    if (cool <= 0) {
-      cool = 0.3;
-      const dx = p.x - player.x;
-      const dy = p.y - player.y;
-      const len = Math.hypot(dx, dy) || 1;
-      torps.push({
-        x: player.x,
-        y: player.y,
-        vx: (dx / len) * TORP_SPEED,
-        vy: (dy / len) * TORP_SPEED,
-        speed: TORP_SPEED,
-        life: 2.4,
-      });
-      sfx("shoot");
+    if (e.pointerType !== "touch" && e.button !== 0) return;
+    e.preventDefault();
+    if (e.pointerType === "touch") {
+      activeAimPointerId = e.pointerId;
+      try {
+        canvas.setPointerCapture(e.pointerId);
+      } catch {
+        /* ignore */
+      }
     }
+    const p = canvasCoords(e);
+    mouse.x = p.x;
+    mouse.y = p.y;
+    for (const f of fish) {
+      if (f.lang === "en" && f.label && Math.hypot(p.x - f.x, p.y - f.y) < 34) {
+        speakWord(f.label);
+        break;
+      }
+    }
+    fireTorpedoAt(p.x, p.y);
+  });
+
+  ["pointerup", "pointercancel", "lostpointercapture"].forEach((evName) => {
+    canvas.addEventListener(evName, (e) => {
+      if (activeAimPointerId === e.pointerId) activeAimPointerId = null;
+    });
+  });
+
+  document.querySelectorAll("[data-uw-control]").forEach((btn) => {
+    const ctrl = btn.dataset.uwControl;
+    const release = () => {
+      btn.classList.remove("is-pressed");
+      if (ctrl in touchDirs) touchDirs[ctrl] = false;
+    };
+    btn.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      if (!active || mode !== "play") return;
+      btn.classList.add("is-pressed");
+      try {
+        btn.setPointerCapture(e.pointerId);
+      } catch {
+        /* ignore */
+      }
+      if (ctrl === "fire") {
+        fireTorpedoAt(Math.min(W - 20, player.x + 320), player.y);
+      } else if (ctrl in touchDirs) {
+        touchDirs[ctrl] = true;
+      }
+    });
+    ["pointerup", "pointercancel", "lostpointercapture"].forEach((evName) => {
+      btn.addEventListener(evName, release);
+    });
   });
 
   /* ---------- State transitions ---------- */
@@ -565,6 +677,9 @@ window.UnderwaterGame = (() => {
     player.y = H / 2;
     player.tilt = 0;
     player.wakeTimer = 0;
+    keys.clear();
+    resetTouchDirs();
+    if (window.WortweltenFullscreen) window.WortweltenFullscreen.enterIfMobile(true);
     syncUwResolution();
     high = typeof topUnderwaterHighscore === "function" ? topUnderwaterHighscore() : 0;
     newPrompt();
@@ -584,7 +699,8 @@ window.UnderwaterGame = (() => {
   let revealTimer = 0;
 
   function lcRenderTyped() {
-    lcAnswers.textContent = lcTyped.length ? lcTyped : "_";
+    if (lcAnswers) lcAnswers.textContent = lcTyped.length ? lcTyped : "_";
+    if (lcInput && lcInput.value !== lcTyped) lcInput.value = lcTyped;
   }
 
   function lcCheck() {
@@ -610,7 +726,7 @@ window.UnderwaterGame = (() => {
       lcCheck();
       return;
     }
-    if (!/^[a-zäöüß -]$/i.test(e.key)) return;
+    if (!/^[a-zäöüß'’ -]$/i.test(e.key)) return;
     lcTyped += e.key;
     lcRenderTyped();
   }
@@ -618,10 +734,13 @@ window.UnderwaterGame = (() => {
   function openTypingScreen(kind) {
     lcKind = kind;
     mode = kind;
+    keys.clear();
+    resetTouchDirs();
     const scr = screens[kind];
     lcQuestion = scr.querySelector(".uw-q");
     lcHint = scr.querySelector(".uw-hint");
     lcAnswers = scr.querySelector(".uw-answers");
+    lcInput = scr.querySelector(".uw-typing-input");
     const p = pickWeightedWord(getTypableVocab()) || { id: "fallback", de: "Hund", en: "dog" };
     const lang = Math.random() < 0.5 ? "en" : "de";
     const src = lang === "en" ? p.de : p.en;
@@ -631,16 +750,23 @@ window.UnderwaterGame = (() => {
     lcTyped = "";
     lcDone = false;
     if (revealLines[kind]) revealLines[kind].textContent = "";
-    lcQuestion.textContent = `Tippe die Übersetzung von "${src}" mit der Tastatur`;
+    lcQuestion.textContent = `Übersetze „${src}“`;
     if (lcHint) {
       lcHint.textContent =
         kind === "life"
-          ? "Nur Buchstaben - Backspace zum Korrigieren - Enter zum Absenden - Esc zum Überspringen"
-          : "Nur Buchstaben - Backspace zum Korrigieren - Enter zum Absenden";
+          ? "Übersetzung eingeben · Enter zum Absenden · Esc oder Überspringen"
+          : "Übersetzung eingeben · Enter oder Prüfen zum Absenden";
     }
-    lcAnswers.innerHTML = "";
+    if (lcAnswers) lcAnswers.innerHTML = "";
+    if (lcInput) {
+      lcInput.value = "";
+      lcInput.disabled = false;
+    }
     lcRenderTyped();
     showScreen(kind);
+    if (lcInput && !(window.WortweltenFullscreen && window.WortweltenFullscreen.isMobileDevice())) {
+      lcInput.focus({ preventScroll: true });
+    }
     sfx("start");
   }
 
@@ -730,7 +856,9 @@ window.UnderwaterGame = (() => {
     playerName = name;
     active = true;
     mode = "start";
+    document.body.classList.add("uw-playing");
     keys.clear();
+    resetTouchDirs();
     colTop = [];
     colBot = [];
     scroll = 0;
@@ -738,12 +866,14 @@ window.UnderwaterGame = (() => {
     fish = [];
     torps = [];
     parts = [];
+    popups = [];
     fishBubbles.length = 0;
     high = typeof topUnderwaterHighscore === "function" ? topUnderwaterHighscore() : 0;
     playerNameEl.textContent = playerName;
     updateMusicButton();
     showScreen("start");
     ensureCols(Math.ceil(W / COLW) + 2);
+    syncUwResolution();
     draw();
     startBtn.focus({ preventScroll: true });
   }
@@ -751,7 +881,9 @@ window.UnderwaterGame = (() => {
   function close() {
     active = false;
     mode = "idle";
+    document.body.classList.remove("uw-playing");
     keys.clear();
+    resetTouchDirs();
     stopBgm();
     if (window.speechSynthesis) {
       try {
@@ -818,10 +950,10 @@ window.UnderwaterGame = (() => {
 
     let dx = 0;
     let dy = 0;
-    if (keys.has("ArrowLeft") || keys.has("KeyA")) dx -= 1;
-    if (keys.has("ArrowRight") || keys.has("KeyD")) dx += 1;
-    if (keys.has("ArrowUp") || keys.has("KeyW")) dy -= 1;
-    if (keys.has("ArrowDown") || keys.has("KeyS")) dy += 1;
+    if (keys.has("ArrowLeft") || keys.has("KeyA") || touchDirs.left) dx -= 1;
+    if (keys.has("ArrowRight") || keys.has("KeyD") || touchDirs.right) dx += 1;
+    if (keys.has("ArrowUp") || keys.has("KeyW") || touchDirs.up) dy -= 1;
+    if (keys.has("ArrowDown") || keys.has("KeyS") || touchDirs.down) dy += 1;
     if (dx && dy) {
       dx *= 0.7071;
       dy *= 0.7071;

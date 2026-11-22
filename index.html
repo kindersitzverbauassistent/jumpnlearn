@@ -2,8 +2,11 @@
 <html lang="de">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#0d1321">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Wortwelten – Dungeon &amp; Unterwasserabenteuer</title>
   <meta name="description" content="Gemeinsamer Englisch-Vokabeltrainer mit zwei Spielen: Der versunkene Dungeon und Franzos Unterwasserabenteuer.">
   <meta property="og:title" content="Wortwelten – Dungeon &amp; Unterwasserabenteuer">
@@ -79,7 +82,7 @@
             <img src="./src/assets/images/portal_underwater_submarine_1795339063313.jpg" alt="Ein gelbes Retro-U-Boot taucht durch eine beleuchtete Unterwasserhöhle mit Korallen und Fischen" referrerpolicy="no-referrer">
           </div>
           <div class="portal-body">
-            <p class="portal-meta">U-Boot-Shooter · Atemluft &amp; Torpedos · Maus &amp; WASD</p>
+            <p class="portal-meta">U-Boot-Shooter · Atemluft &amp; Torpedos · Maus, WASD &amp; Touch</p>
             <h2>Franzos Unterwasserabenteuer</h2>
             <p>Steuere das U-Boot durch tiefe Höhlen, feuere Torpedos auf den Fisch mit der richtigen Vokabel und halte deine Atemluft hoch.</p>
             <div class="portal-actions">
@@ -183,7 +186,10 @@
         <div class="run-stats"><small>DEIN LAUF</small><strong>✓ <span id="run-correct">0</span> &nbsp; · &nbsp; ✕ <span id="run-wrong">0</span></strong></div>
         <div class="lives"><small>LEBEN</small><strong id="lives" aria-label="3 Leben">♥ 3</strong></div>
         <div class="score"><span>✦</span><div><small>PUNKTE</small><strong id="score">0</strong></div></div>
-        <button type="button" id="dungeon-back-button" class="dungeon-back-btn">← Zur Startseite</button>
+        <div class="dungeon-top-actions">
+          <button type="button" id="dungeon-fullscreen-button" class="dungeon-back-btn" data-fullscreen-toggle aria-pressed="false">⛶ Vollbild</button>
+          <button type="button" id="dungeon-back-button" class="dungeon-back-btn">← Zur Startseite</button>
+        </div>
       </div>
       <div class="game-area">
         <canvas id="game" width="1000" height="490" tabindex="-1" aria-label="Die Figur läuft automatisch. Springe für die obere Antwort oder bleibe für die untere Antwort unten."></canvas>
@@ -226,6 +232,7 @@
           <strong id="uw-player-name"></strong>
         </div>
         <div class="uw-top-actions">
+          <button type="button" id="uw-fullscreen-button" class="uw-util-btn" data-fullscreen-toggle aria-pressed="false">⛶ Vollbild</button>
           <button type="button" id="uw-music-toggle" class="uw-util-btn" aria-pressed="false">♫ Musik: An</button>
           <button type="button" id="uw-back-button" class="uw-util-btn">← Zur Startseite</button>
         </div>
@@ -235,10 +242,10 @@
 
         <div id="uw-overlay-start" class="uw-screen active">
           <h1>Franzos Unterwasserabenteuer</h1>
-          <p class="uw-hint">Steuerung: Pfeiltasten / WASD &nbsp;&bull;&nbsp; Torpedo: Mausklick</p>
+          <p class="uw-hint">Steuerung: Pfeiltasten / WASD oder Touch-Steuerkreuz &nbsp;&bull;&nbsp; Torpedo: Klick, Tipp auf Fisch oder Feuer-Taste</p>
           <p class="uw-hint">Fisch mit der richtigen Übersetzung: Bonuspunkte &amp; mehr Atemluft!</p>
           <p class="uw-hint">Lebensfisch: Frage beantworten &amp; ein Extra-Leben gewinnen</p>
-          <p class="uw-hint">Englische Fische sprechen, wenn du mit der Maus darüberfährst &nbsp;&bull;&nbsp; M: Musik an / aus</p>
+          <p class="uw-hint">Englische Fische sprechen, wenn du mit der Maus darüberfährst oder sie antippst &nbsp;&bull;&nbsp; M: Musik an / aus</p>
           <div class="uw-screen-actions">
             <button type="button" id="uw-start-btn" class="uw-btn">Starten</button>
             <button type="button" id="uw-overlay-home-btn" class="uw-btn uw-btn-secondary">Zur Startseite</button>
@@ -247,17 +254,26 @@
 
         <div id="uw-overlay-lastchance" class="uw-screen">
           <h1>Letzte Chance!</h1>
-          <p class="uw-q">Tippe die Übersetzung von ... mit der Tastatur</p>
-          <p class="uw-hint">Nur Buchstaben &bull; Backspace zum Korrigieren &bull; Enter zum Absenden</p>
-          <div class="uw-answers"></div>
+          <p class="uw-q">Tippe die Übersetzung von ... ein</p>
+          <p class="uw-hint">Übersetzung eingeben &bull; Enter oder Prüfen zum Absenden</p>
+          <form class="uw-typing-form" novalidate>
+            <input type="text" class="uw-typing-input" maxlength="60" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Antwort eingeben …" aria-label="Übersetzung eingeben">
+            <button type="submit" class="uw-btn">Prüfen</button>
+          </form>
+          <div class="uw-answers" hidden></div>
           <p class="uw-reveal"></p>
         </div>
 
         <div id="uw-overlay-life" class="uw-screen">
           <h1>Lebensfisch!</h1>
-          <p class="uw-q">Tippe die Übersetzung von ... mit der Tastatur</p>
-          <p class="uw-hint">Nur Buchstaben &bull; Backspace zum Korrigieren &bull; Enter zum Absenden &bull; Esc zum Überspringen</p>
-          <div class="uw-answers"></div>
+          <p class="uw-q">Tippe die Übersetzung von ... ein</p>
+          <p class="uw-hint">Übersetzung eingeben &bull; Enter zum Absenden &bull; Esc oder Überspringen</p>
+          <form class="uw-typing-form" novalidate>
+            <input type="text" class="uw-typing-input" maxlength="60" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Antwort eingeben …" aria-label="Übersetzung eingeben">
+            <button type="submit" class="uw-btn">Prüfen</button>
+            <button type="button" class="uw-btn uw-btn-secondary uw-skip-btn">Überspringen</button>
+          </form>
+          <div class="uw-answers" hidden></div>
           <p class="uw-reveal"></p>
         </div>
 
@@ -269,6 +285,20 @@
             <button type="button" id="uw-restart-btn" class="uw-btn">Neustart</button>
             <button type="button" id="uw-gameover-home-btn" class="uw-btn uw-btn-secondary">Zur Startseite</button>
           </div>
+        </div>
+      </div>
+      <div class="uw-below" id="uw-below">
+        <div class="uw-instructions">
+          <strong>Steuerung &amp; Touch:</strong> Bewege das U-Boot mit WASD, Pfeiltasten oder dem Steuerkreuz. Tippe direkt auf einen Fisch oder drücke die Torpedo-Taste zum Feuern.
+        </div>
+        <div class="uw-touch-controls" id="uw-touch-controls" aria-label="U-Boot Touch-Steuerung">
+          <div class="uw-dpad">
+            <button type="button" class="uw-ctrl-btn uw-ctrl-up" data-uw-control="up" aria-label="Hoch">↑</button>
+            <button type="button" class="uw-ctrl-btn uw-ctrl-left" data-uw-control="left" aria-label="Links">←</button>
+            <button type="button" class="uw-ctrl-btn uw-ctrl-right" data-uw-control="right" aria-label="Rechts">→</button>
+            <button type="button" class="uw-ctrl-btn uw-ctrl-down" data-uw-control="down" aria-label="Runter">↓</button>
+          </div>
+          <button type="button" class="uw-ctrl-btn uw-ctrl-fire" data-uw-control="fire" aria-label="Torpedo abfeuern">➤ <span>TORPEDO</span></button>
         </div>
       </div>
     </section>

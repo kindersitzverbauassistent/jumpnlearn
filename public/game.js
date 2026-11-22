@@ -49,6 +49,8 @@ function syncCanvasResolution() {
 }
 syncCanvasResolution();
 window.addEventListener("resize", syncCanvasResolution);
+document.addEventListener("fullscreenchange", syncCanvasResolution);
+document.addEventListener("webkitfullscreenchange", syncCanvasResolution);
 
 const ground = 392;
 const upperGap = 132;
@@ -455,6 +457,7 @@ function endGame(bossQuestionAnswered = false) {
     nextRescueQuestion();
     lastChance.hidden = false;
     setMusicMode("lastChance");
+    if (window.WortweltenFullscreen) window.WortweltenFullscreen.unlockOrientation();
     updateOrientation();
     if (!orientationPaused) {
       if (coarseTouch.matches) lastChance.focus({ preventScroll: true });

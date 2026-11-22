@@ -122,6 +122,7 @@ function startBoss() {
 
 function beginBossFight() {
   if (state !== "bossIntro" || orientationPaused) return;
+  if (window.WortweltenFullscreen) window.WortweltenFullscreen.enterIfMobile(true);
   bossIntro.hidden = true;
   boss.active = true;
   boss.health = 5;
