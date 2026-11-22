@@ -19,6 +19,8 @@ const messageIcon = document.getElementById("message-icon");
 const messageTitle = document.getElementById("message-title");
 const messageText = document.getElementById("message-text");
 const restartButton = document.getElementById("restart-button");
+const dungeonBackButton = document.getElementById("dungeon-back-button");
+const bossBackButton = document.getElementById("boss-back-button");
 const lastChance = document.getElementById("last-chance");
 const lastChanceForm = document.getElementById("last-chance-form");
 const lastChanceCount = document.getElementById("last-chance-count");
@@ -497,7 +499,32 @@ function beginRespawn() {
   playSound("respawn");
 }
 
-restartButton.addEventListener("click", () => { state = "menu"; showMenu(); });
+function exitDungeonToMenu() {
+  if (state === "menu") return;
+  if (state !== "gameover" && score > 0 && playerName) {
+    saveAppData({ ...appData, highscores: highscoreEntries(playerName, score) });
+  }
+  state = "menu";
+  resetControls();
+  resetBoss();
+  lastChance.hidden = true;
+  message.hidden = true;
+  questionBubble.hidden = true;
+  toast.hidden = true;
+  toastTime = 0;
+  levelToast.hidden = true;
+  levelToastTime = 0;
+  fallingSegment = null;
+  impactStarted = 0;
+  impactHazard = "";
+  if (typeof stopDungeonMusic === "function") stopDungeonMusic();
+  showMenu();
+}
+window.exitDungeonToMenu = exitDungeonToMenu;
+
+restartButton.addEventListener("click", exitDungeonToMenu);
+if (dungeonBackButton) dungeonBackButton.addEventListener("click", exitDungeonToMenu);
+if (bossBackButton) bossBackButton.addEventListener("click", exitDungeonToMenu);
 
 function setControl(control, pressed) {
   if (orientationPaused || state === "bossIntro" || state === "lastChance" || state === "gameover") return;

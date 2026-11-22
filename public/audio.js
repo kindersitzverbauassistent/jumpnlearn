@@ -228,6 +228,26 @@ function startMusicOnInteraction() {
   toggleAudio("start");
 }
 
+function stopDungeonMusic() {
+  const wasPlaying = musicEnabled;
+  window.clearInterval(musicTimer);
+  musicTimer = undefined;
+  musicEnabled = false;
+  musicMode = "normal";
+  if (audioContext && musicBus) {
+    musicBus.gain.setValueAtTime(0, audioContext.currentTime);
+  }
+  if ("speechSynthesis" in window) {
+    try {
+      window.speechSynthesis.cancel();
+    } catch {
+      /* ignore */
+    }
+  }
+  if (wasPlaying) musicAutoStartPending = true;
+  updateAudioButtons();
+}
+
 musicToggle.addEventListener("click", () => {
   musicAutoStartPending = false;
   toggleAudio("music");

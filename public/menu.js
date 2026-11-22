@@ -1337,4 +1337,17 @@ function showMenu() {
   profileSelect.focus();
 }
 
+const brandLink = document.querySelector(".masthead .brand");
+if (brandLink) {
+  brandLink.addEventListener("click", event => {
+    if (!gameShell.hidden && typeof window.exitDungeonToMenu === "function") {
+      event.preventDefault();
+      window.exitDungeonToMenu();
+    } else if (!underwaterShell.hidden && window.UnderwaterGame && typeof window.UnderwaterGame.close === "function") {
+      event.preventDefault();
+      window.UnderwaterGame.close();
+    }
+  });
+}
+
 renderMenu();

@@ -183,6 +183,7 @@
         <div class="run-stats"><small>DEIN LAUF</small><strong>✓ <span id="run-correct">0</span> &nbsp; · &nbsp; ✕ <span id="run-wrong">0</span></strong></div>
         <div class="lives"><small>LEBEN</small><strong id="lives" aria-label="3 Leben">♥ 3</strong></div>
         <div class="score"><span>✦</span><div><small>PUNKTE</small><strong id="score">0</strong></div></div>
+        <button type="button" id="dungeon-back-button" class="dungeon-back-btn">← Zur Startseite</button>
       </div>
       <div class="game-area">
         <canvas id="game" width="1000" height="490" tabindex="-1" aria-label="Die Figur läuft automatisch. Springe für die obere Antwort oder bleibe für die untere Antwort unten."></canvas>
@@ -282,7 +283,10 @@
           <p><strong>Ausweichen:</strong> Bewege dich mit ← / → oder A / D und springe mit ↑, W oder Leertaste, um den Geschossen auszuweichen. Auf Touchgeräten helfen dir die Bildschirmtasten.</p>
           <p>Fünf richtige Treffer besiegen den Boss. Ein falsches Schild oder ein Geschoss kostet ein Leben.</p>
         </div>
-        <button id="boss-start-button" type="button">BOSSKAMPF STARTEN <span>→</span></button>
+        <div class="message-actions">
+          <button id="boss-start-button" type="button">BOSSKAMPF STARTEN <span>→</span></button>
+          <button id="boss-back-button" type="button" class="message-secondary-btn">Zur Startseite</button>
+        </div>
       </div>
     </div>
 
