@@ -1,0 +1,153 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Pillar 0: Default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Global hardened primitives
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isEmailVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    // Bootstrapped central admin for shared base vocabulary management
+    function isAdmin() {
+      return isSignedIn()
+        && isEmailVerified()
+        && request.auth.token.email == 'ahuf77@gmail.com';
+    }
+
+    // Allows {uid}_{game} or {uid}_{game}_{profileSlug} so shared devices can store separate profile scores safely
+    function isValidHighscoreSlot(scoreId, uid, game) {
+      let base = uid + '_' + game;
+      return scoreId == base
+        || (scoreId.size() > base.size() + 1 && scoreId[0 : base.size() + 1] == base + '_');
+    }
+
+    // Pillar 2: Validation Blueprint matching firebase-blueprint.json HighscoreEntry
+    function isValidHighscore(data) {
+      return data.keys().hasAll(['ownerUid', 'playerName', 'game', 'score', 'isPublic', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['ownerUid', 'playerName', 'game', 'score', 'isPublic', 'createdAt', 'updatedAt'])
+        && data.ownerUid is string
+        && data.ownerUid.size() >= 1
+        && data.ownerUid.size() <= 128
+        && data.ownerUid.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.ownerUid == request.auth.uid
+        && data.playerName is string
+        && data.playerName.size() >= 1
+        && data.playerName.size() <= 30
+        && data.game is string
+        && data.game.size() >= 1
+        && data.game.size() <= 20
+        && (data.game == 'dungeon' || data.game == 'underwater')
+        && data.score is int
+        && data.score >= 0
+        && data.score <= 100000000
+        && data.isPublic is bool
+        && data.isPublic == true
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isScoreImproveAction() {
+      return existing().ownerUid == request.auth.uid
+        && incoming().ownerUid == existing().ownerUid
+        && incoming().game == existing().game
+        && incoming().isPublic == existing().isPublic
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().score > existing().score;
+    }
+
+    // Pillar 2: Validation Blueprint matching firebase-blueprint.json BaseVocabularyWord
+    function isValidBaseWord(data) {
+      return data.keys().hasAll(['german', 'english', 'isActive', 'updatedBy', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['german', 'english', 'isActive', 'updatedBy', 'createdAt', 'updatedAt'])
+        && data.german is string
+        && data.german.size() >= 1
+        && data.german.size() <= 60
+        && data.english is string
+        && data.english.size() >= 1
+        && data.english.size() <= 60
+        && data.isActive is bool
+        && data.isActive == true
+        && data.updatedBy is string
+        && data.updatedBy.size() >= 1
+        && data.updatedBy.size() <= 128
+        && data.updatedBy.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.updatedBy == request.auth.uid
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    match /highscores/{scoreId} {
+      // Public leaderboard reads with explicit resource.data boundary enforcement (no PII stored)
+      allow get: if isValidId(scoreId)
+        && (resource == null || existing().isPublic == true || (isSignedIn() && existing().ownerUid == request.auth.uid));
+
+      allow list: if resource.data.isPublic == true
+        || (isSignedIn() && resource.data.ownerUid == request.auth.uid);
+
+      // Players (anonymous or Google-authenticated) can save their own highscores
+      allow create: if isSignedIn()
+        && isValidId(scoreId)
+        && isValidHighscore(incoming())
+        && isValidHighscoreSlot(scoreId, request.auth.uid, incoming().game)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      allow update: if isSignedIn()
+        && isValidId(scoreId)
+        && isValidHighscore(incoming())
+        && isValidHighscoreSlot(scoreId, request.auth.uid, incoming().game)
+        && isScoreImproveAction()
+        && incoming().diff(existing()).affectedKeys().hasOnly(['playerName', 'score', 'updatedAt']);
+
+      allow delete: if isSignedIn()
+        && isValidId(scoreId)
+        && existing().ownerUid == request.auth.uid;
+    }
+
+    match /baseVocabulary/{wordId} {
+      // Active base vocabulary is publicly readable; only verified admin can create/update/delete
+      allow get: if isValidId(wordId)
+        && (resource == null || existing().isActive == true || isAdmin());
+
+      allow list: if resource.data.isActive == true || isAdmin();
+
+      allow create: if isAdmin()
+        && isValidId(wordId)
+        && isValidBaseWord(incoming())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      allow update: if isAdmin()
+        && isValidId(wordId)
+        && isValidBaseWord(incoming())
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['german', 'english', 'updatedBy', 'updatedAt']);
+
+      allow delete: if isAdmin()
+        && isValidId(wordId);
+    }
+  }
+}

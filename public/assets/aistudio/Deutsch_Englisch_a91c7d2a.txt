@@ -1,0 +1,124 @@
+de;en
+willkommen (bei / in);welcome (to)
+Hallo.;Hello.
+ich bin;I'm (= I am)
+Wie heißt du?;What's your name?
+Hi / Hallo;Hi
+Wie geht es dir?;How are you?
+Mir geht es gut.;I'm fine.
+okay;OK / okay
+Danke.;Thank you. / Thanks.
+Und du?;And you?
+Es ist Zeit zu gehen.;It's time to go.
+Auf Wiedersehen. / Tschüss!;Bye. / Goodbye.
+ja;yes
+der / die / das;the
+Fledermaus;bat
+Schön, dich kennenzulernen.;Nice to meet you.
+Ich mag Englisch.;I like English.
+blau;blue
+rot;red
+weiß;white
+grün;green
+braun;brown
+grau;grey
+pink / rosa;pink
+gelb;yellow
+orange;orange
+im Park;in a park
+Farbe;colour
+Haustier;pet
+Hund;dog
+Zahl / Nummer;number
+Leute / Menschen;people
+Jungen / Buben;boys
+Pommes frites;chips
+Ich sehe was, was du nicht siehst, und das ist ...;I spy with my little eye, something ...
+Skateboard;skateboard
+Ich kann Fahrrad fahren.;I can ride a bike.
+spielen;to play
+aus / von;from
+das / dies;this
+cool / super;cool
+Fußball;football
+Fan;fan
+elf;eleven
+Wie alt bist du?;How old are you?
+alt;old
+Woher kommst du?;Where are you from?
+sie sind;they're (= they are)
+zwölf;twelve
+Foto;photo
+Deutschland;Germany
+ihr (z. B. ihr Ball);her
+Familie;family
+wir sind;we're (= we are)
+Garten;garden
+hier;here
+sie ist;she's (= she is)
+Schwester;sister
+ich habe / ich besitze;I have
+keine Brüder;no brothers
+Bruder;brother
+mir / mich;me
+unser;our
+Vater;father
+er ist;he's (= he is)
+Mutter;mother
+auch;too
+Papa / Vati;dad
+Freund / Freundin;friend
+Mama / Mutti;mum
+das ist;that's (= that is)
+England;England
+sein;to be
+du bist / ihr seid / Sie sind;you're (= you are)
+Grill / Grillfest;barbecue
+Box / Kiste / Schachtel;box
+Tisch;table
+Telefon;phone
+Ball;ball
+Helm;helmet
+Buch / Heft;book
+Stuhl;chair
+Baum;tree
+Leiter;ladder
+Haus;house
+da ist / dort ist / es gibt (Sg.);there's (= there is)
+neben;next to
+Teddybär;teddy
+auf / an / am;on
+unter;under
+da sind / es gibt (Pl.);there are
+richtig / korrekt;right
+falsch;wrong
+zu Hause / Heim;home
+zu Hause / daheim;at home
+Wohnung;flat
+Balkon;balcony
+wer;who
+Bist du bereit?;Are you ready?
+nein;no
+ich kann ... nicht finden;I can't find ...
+Welche Farbe hat ...?;What colour is ...?
+Tasche / Tüte / Sack;bag
+Durcheinander / Unordnung;mess
+wer ist;who's (= who is)
+Herr (Anrede);Mr
+Frau (Anrede);Mrs
+Nachbar / Nachbarin;neighbour
+Samstag;Saturday
+Holz;wood
+beschäftigt;busy
+später;later
+dann / danach;then
+Nacht;night
+merkwürdig / komisch / lustig;funny
+Geräusch;noise
+niemand;no one
+Wind;wind
+Bild;picture
+Mein Name ist ... / Ich heiße ...;My name is ...
+hinter;behind
+Essen / Lebensmittel;food
+von;of

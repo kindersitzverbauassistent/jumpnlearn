@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <title>Franzos Unterwasserabenteuer</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="stage">
+    <canvas id="game" width="960" height="540"></canvas>
+
+    <div id="overlay-start" class="screen active">
+      <h1>Franzos Unterwasserabenteuer</h1>
+      <p class="hint">Steuerung: Pfeiltasten / WASD &nbsp;&bull;&nbsp; Torpedo: Mausklick</p>
+      <p class="hint">Fisch mit der richtigen Übersetzung: Bonuspunkte &amp; mehr Atemluft!</p>
+      <p class="hint">Lebensfisch: Frage beantworten &amp; ein Extra-Leben gewinnen</p>
+      <p class="hint">Englische Fische sprechen, wenn du mit der Maus darüberfährst &nbsp;&bull;&nbsp; M: Musik an / aus</p>
+      <button type="button">Starten</button>
+    </div>
+
+    <div id="overlay-lastchance" class="screen">
+      <h1>Letzte Chance!</h1>
+      <p class="q">Tippe die Übersetzung von ... mit der Tastatur</p>
+      <p class="hint">Nur Buchstaben &bull; Backspace zum Korrigieren &bull; Enter zum Absenden</p>
+      <div class="answers"></div>
+      <p class="reveal"></p>
+    </div>
+
+    <div id="overlay-life" class="screen">
+      <h1>Lebensfisch!</h1>
+      <p class="q">Tippe die Übersetzung von ... mit der Tastatur</p>
+      <p class="hint">Nur Buchstaben &bull; Backspace zum Korrigieren &bull; Enter zum Absenden &bull; Esc zum Überspringen</p>
+      <div class="answers"></div>
+      <p class="reveal"></p>
+    </div>
+
+    <div id="overlay-gameover" class="screen">
+      <h1>Spiel vorbei</h1>
+      <p class="final">Punktestand: 0</p>
+      <p class="reveal"></p>
+      <button type="button">Neustart</button>
+    </div>
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>

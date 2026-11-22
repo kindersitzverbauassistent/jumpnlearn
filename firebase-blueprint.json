@@ -1,0 +1,118 @@
+{
+  "entities": {
+    "HighscoreEntry": {
+      "title": "HighscoreEntry",
+      "description": "A player's best public highscore for a Wortwelten game mode.",
+      "type": "object",
+      "properties": {
+        "ownerUid": {
+          "type": "string",
+          "description": "Firebase Authentication UID (anonymous or Google) of the score owner",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "playerName": {
+          "type": "string",
+          "description": "Player profile display name shown on the leaderboard",
+          "minLength": 1,
+          "maxLength": 30
+        },
+        "game": {
+          "type": "string",
+          "enum": ["dungeon", "underwater"],
+          "description": "Game identifier for the score entry"
+        },
+        "score": {
+          "type": "integer",
+          "description": "Non-negative integer game score"
+        },
+        "isPublic": {
+          "type": "boolean",
+          "description": "Marks the highscore entry as visible on the public leaderboard"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the score entry was first created"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the score entry was last updated"
+        }
+      },
+      "required": [
+        "ownerUid",
+        "playerName",
+        "game",
+        "score",
+        "isPublic",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "BaseVocabularyWord": {
+      "title": "BaseVocabularyWord",
+      "description": "A centrally managed online base vocabulary pair shared across all Wortwelten players.",
+      "type": "object",
+      "properties": {
+        "german": {
+          "type": "string",
+          "description": "German word or phrase",
+          "minLength": 1,
+          "maxLength": 60
+        },
+        "english": {
+          "type": "string",
+          "description": "English translation",
+          "minLength": 1,
+          "maxLength": 60
+        },
+        "isActive": {
+          "type": "boolean",
+          "description": "Whether the base vocabulary word is active and publicly readable"
+        },
+        "updatedBy": {
+          "type": "string",
+          "description": "Firebase Authentication UID of the admin who created or last edited the word",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the word was created"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the word was last updated"
+        }
+      },
+      "required": [
+        "german",
+        "english",
+        "isActive",
+        "updatedBy",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/highscores/{scoreId}": {
+      "schema": {
+        "$ref": "#/entities/HighscoreEntry"
+      },
+      "description": "Public highscores keyed by {ownerUid}_{game}_{profileSlug} so each browser profile stores its own best score per game without requiring Google login."
+    },
+    "/baseVocabulary/{wordId}": {
+      "schema": {
+        "$ref": "#/entities/BaseVocabularyWord"
+      },
+      "description": "Centrally managed base vocabulary words readable by all clients and writable only by the verified admin."
+    }
+  }
+}
