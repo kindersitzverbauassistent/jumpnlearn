@@ -1103,32 +1103,20 @@ window.UnderwaterGame = (() => {
           }
         }
       }
+      let deflected = false;
       if (!dead) {
         for (let j = fish.length - 1; j >= 0; j--) {
           const f = fish[j];
           if (circleRect(t.x, t.y, 5, f.x - 10, f.y - 7, 20, 14)) {
             if (f.kind === "life") {
-              score += 25;
-              spawnPopup(f.x, f.y - 18, "+25", "#7effb2");
+              deflected = true;
+              spawnPopup(f.x, f.y - 18, "UNZERSTÖRBAR!", "#7effb2");
               sfx("coin");
-            } else if (f.correct) {
-              score += 100;
-              air = Math.min(AIR_MAX, air + AIR_REFILL);
-              if (f.lang === "en") speakWord(f.label);
-              recordSharedAnswer(f.wordId, true);
-              spawnPopup(f.x, f.y - 18, "+100 & LUFT!", "#7effb2");
-              sfx("correct");
-              newPrompt();
             } else {
-              score += 10;
-              air = Math.max(0, air - AIR_PENALTY);
-              if (f.lang === "en") speakWord(f.label);
-              recordSharedAnswer(f.wordId, false);
               explodeAt(f.x, f.y);
-              spawnPopup(f.x, f.y - 18, "FALSCH!", "#ff6b81");
-              sfx("wrong");
+              spawnPopup(f.x, f.y - 18, "BOOM!", "#ffd23e");
+              fish.splice(j, 1);
             }
-            fish.splice(j, 1);
             dead = true;
             break;
           }
@@ -1143,10 +1131,10 @@ window.UnderwaterGame = (() => {
             vy: rnd(-100, 100),
             r: rnd(3, 6),
             life: rnd(0.22, 0.52),
-            c: pick(["#ffd23e", "#ff8c42", "#39e8ff", "#ffffff"]),
+            c: deflected ? pick(["#7effb2", "#39e8ff", "#ffffff"]) : pick(["#ffd23e", "#ff8c42", "#39e8ff", "#ffffff"]),
           });
         }
-        if (!(t.life <= 0.001 || t.x < -20 || t.x > W + 20 || t.y < -20 || t.y > H + 20)) {
+        if (!deflected && !(t.life <= 0.001 || t.x < -20 || t.x > W + 20 || t.y < -20 || t.y > H + 20)) {
           sfx("boom");
         }
         torps.splice(i, 1);
@@ -1205,7 +1193,7 @@ window.UnderwaterGame = (() => {
           if (f.lang === "en" && !f.spoke) speakWord(f.label);
           recordSharedAnswer(f.wordId, false);
           explodeAt(f.x, f.y);
-          spawnPopup(f.x, f.y - 20, "AUTSCH!", "#ff6b81");
+          spawnPopup(f.x, f.y - 20, "FALSCH! -LUFT", "#ff6b81");
           sfx("wrong");
           armAir();
         }
