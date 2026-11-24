@@ -508,35 +508,174 @@ window.UnderwaterGame = (() => {
     }
   }
 
-  /* ---------- Input (Keyboard + Mouse + Multi-Touch) ---------- */
+  /* ---------- Input (Keyboard + Mouse + Analog Joystick + Tap-to-Lock) ---------- */
   const keys = new Set();
-  const touchDirs = { up: false, down: false, left: false, right: false };
+  const joyVec = { x: 0, y: 0 };
+  const joyBase = document.getElementById("uw-joystick");
+  const joyKnob = document.getElementById("uw-joy-knob");
+  let joyPointerId = null;
 
   function resetTouchDirs() {
-    touchDirs.up = false;
-    touchDirs.down = false;
-    touchDirs.left = false;
-    touchDirs.right = false;
+    joyVec.x = 0;
+    joyVec.y = 0;
+    joyPointerId = null;
+    activeAimPointerId = null;
+    if (joyBase) joyBase.classList.remove("is-active");
+    if (joyKnob) joyKnob.style.transform = "translate3d(0, 0, 0)";
     document.querySelectorAll("[data-uw-control]").forEach((btn) => btn.classList.remove("is-pressed"));
   }
 
-  function fireTorpedoAt(tx, ty) {
-    if (!active || mode !== "play" || cool > 0) return;
-    aim.x = tx;
-    aim.y = ty;
-    cool = 0.3;
-    const dx = tx - player.x;
-    const dy = ty - player.y;
+  function updateJoystickFromPointer(e) {
+    if (!joyBase || !joyKnob) return;
+    const rect = joyBase.getBoundingClientRect();
+    const cx = rect.left + rect.width * 0.5;
+    const cy = rect.top + rect.height * 0.5;
+    const maxR = Math.max(24, rect.width * 0.34);
+    let dx = e.clientX - cx;
+    let dy = e.clientY - cy;
+    const dist = Math.hypot(dx, dy);
+    if (dist > maxR) {
+      dx = (dx / dist) * maxR;
+      dy = (dy / dist) * maxR;
+    }
+    joyKnob.style.transform = `translate3d(${dx.toFixed(1)}px, ${dy.toFixed(1)}px, 0)`;
+    const norm = Math.min(1, dist / maxR);
+    if (norm < 0.12) {
+      joyVec.x = 0;
+      joyVec.y = 0;
+    } else {
+      const scaled = (norm - 0.12) / 0.88;
+      joyVec.x = (dx / (dist || 1)) * scaled;
+      joyVec.y = (dy / (dist || 1)) * scaled;
+    }
+  }
+
+  if (joyBase) {
+    joyBase.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      if (!active || mode !== "play") return;
+      joyPointerId = e.pointerId;
+      joyBase.classList.add("is-active");
+      try {
+        joyBase.setPointerCapture(e.pointerId);
+      } catch {
+        /* ignore */
+      }
+      updateJoystickFromPointer(e);
+    });
+    joyBase.addEventListener("pointermove", (e) => {
+      if (joyPointerId !== e.pointerId) return;
+      e.preventDefault();
+      updateJoystickFromPointer(e);
+    });
+    ["pointerup", "pointercancel", "lostpointercapture"].forEach((evName) => {
+      joyBase.addEventListener(evName, (e) => {
+        if (joyPointerId !== e.pointerId) return;
+        joyPointerId = null;
+        joyVec.x = 0;
+        joyVec.y = 0;
+        joyBase.classList.remove("is-active");
+        if (joyKnob) joyKnob.style.transform = "translate3d(0, 0, 0)";
+      });
+    });
+  }
+
+  function findTappedTarget(x, y, maxRadius = 56) {
+    let best = null;
+    let bestScore = Infinity;
+    for (const e of enemies) {
+      const d = Math.hypot(x - e.x, y - e.y);
+      if (d <= maxRadius && d * 0.85 < bestScore) {
+        bestScore = d * 0.85;
+        best = { obj: e, kind: "enemy" };
+      }
+    }
+    for (const f of fish) {
+      if (f.kind === "life") continue;
+      const d = Math.hypot(x - f.x, y - f.y);
+      if (d <= maxRadius && d < bestScore) {
+        bestScore = d;
+        best = { obj: f, kind: "fish" };
+      }
+    }
+    return best;
+  }
+
+  function findAutoAimTarget() {
+    let bestEnemy = null;
+    let bestEnemyScore = Infinity;
+    for (const e of enemies) {
+      if (e.x < player.x - 16 || e.x > W + 24) continue;
+      const s = Math.hypot(e.x - player.x, (e.y - player.y) * 1.25);
+      if (s < bestEnemyScore) {
+        bestEnemyScore = s;
+        bestEnemy = e;
+      }
+    }
+    if (bestEnemy) return { obj: bestEnemy, kind: "enemy" };
+
+    let bestWrongFish = null;
+    let bestFishScore = Infinity;
+    for (const f of fish) {
+      if (f.kind === "life" || f.correct) continue;
+      if (f.x < player.x - 16 || f.x > W + 24) continue;
+      const s = Math.hypot(f.x - player.x, (f.y - player.y) * 1.25);
+      if (s < bestFishScore) {
+        bestFishScore = s;
+        bestWrongFish = f;
+      }
+    }
+    if (bestWrongFish) return { obj: bestWrongFish, kind: "fish" };
+    return null;
+  }
+
+  function fireTorpedoAt(tx, ty, opts = {}) {
+    if (!active || mode !== "play" || cool > 0) return null;
+    const guideMode = opts.guideMode || "cursor";
+    const target = opts.target || null;
+    const targetKind = opts.targetKind || null;
+    const aimX = target ? target.x : tx;
+    const aimY = target ? target.y : ty;
+    if (guideMode === "cursor") {
+      aim.x = aimX;
+      aim.y = aimY;
+    }
+    cool = 0.28;
+    const dx = aimX - player.x;
+    const dy = aimY - player.y;
     const len = Math.hypot(dx, dy) || 1;
-    torps.push({
-      x: player.x,
+    const torp = {
+      x: player.x + 14,
       y: player.y,
       vx: (dx / len) * TORP_SPEED,
       vy: (dy / len) * TORP_SPEED,
       speed: TORP_SPEED,
-      life: 2.4,
-    });
+      life: 2.6,
+      guideMode,
+      target,
+      targetKind,
+      gx: aimX,
+      gy: aimY,
+      pointerId: opts.pointerId ?? null,
+    };
+    torps.push(torp);
     sfx("shoot");
+    return torp;
+  }
+
+  function fireAutoTorpedo() {
+    const lock = findAutoAimTarget();
+    if (lock) {
+      fireTorpedoAt(lock.obj.x, lock.obj.y, {
+        guideMode: "lock",
+        target: lock.obj,
+        targetKind: lock.kind,
+      });
+    } else {
+      fireTorpedoAt(Math.min(W - 20, player.x + 320), player.y, {
+        guideMode: "point",
+      });
+    }
   }
 
   window.addEventListener("keydown", (e) => {
@@ -555,7 +694,7 @@ window.UnderwaterGame = (() => {
       }
       if (e.code === "KeyM" && !e.repeat) bgmToggleMute();
       if (e.code === "Space" && !e.repeat) {
-        fireTorpedoAt(Math.min(W - 20, player.x + 320), player.y);
+        fireAutoTorpedo();
       }
       keys.add(e.code);
     }
@@ -579,10 +718,31 @@ window.UnderwaterGame = (() => {
   const aim = { x: W * 0.7, y: H / 2 };
   const mouse = { x: -999, y: -999 };
   let activeAimPointerId = null;
+  let lastPointerWasTouch = false;
 
   canvas.addEventListener("pointermove", (e) => {
     if (!active) return;
-    if (e.pointerType === "touch" && activeAimPointerId !== e.pointerId) return;
+    if (e.pointerType === "touch") {
+      if (activeAimPointerId !== e.pointerId) return;
+      const p = canvasCoords(e);
+      aim.x = p.x;
+      aim.y = p.y;
+      const swept = findTappedTarget(p.x, p.y, 44);
+      for (const t of torps) {
+        if (t.pointerId === e.pointerId) {
+          if (swept) {
+            t.guideMode = "lock";
+            t.target = swept.obj;
+            t.targetKind = swept.kind;
+          } else if (t.guideMode === "point") {
+            t.gx = p.x;
+            t.gy = p.y;
+          }
+        }
+      }
+      return;
+    }
+    lastPointerWasTouch = false;
     const p = canvasCoords(e);
     aim.x = p.x;
     aim.y = p.y;
@@ -594,24 +754,45 @@ window.UnderwaterGame = (() => {
     if (!active || mode !== "play") return;
     if (e.pointerType !== "touch" && e.button !== 0) return;
     e.preventDefault();
+    const p = canvasCoords(e);
+    mouse.x = p.x;
+    mouse.y = p.y;
+    for (const f of fish) {
+      if (f.lang === "en" && f.label && Math.hypot(p.x - f.x, p.y - f.y) < 42) {
+        speakWord(f.label);
+        break;
+      }
+    }
     if (e.pointerType === "touch") {
+      lastPointerWasTouch = true;
       activeAimPointerId = e.pointerId;
+      aim.x = p.x;
+      aim.y = p.y;
       try {
         canvas.setPointerCapture(e.pointerId);
       } catch {
         /* ignore */
       }
-    }
-    const p = canvasCoords(e);
-    mouse.x = p.x;
-    mouse.y = p.y;
-    for (const f of fish) {
-      if (f.lang === "en" && f.label && Math.hypot(p.x - f.x, p.y - f.y) < 34) {
-        speakWord(f.label);
-        break;
+      const lock = findTappedTarget(p.x, p.y, 58);
+      if (lock) {
+        fireTorpedoAt(lock.obj.x, lock.obj.y, {
+          guideMode: "lock",
+          target: lock.obj,
+          targetKind: lock.kind,
+          pointerId: e.pointerId,
+        });
+      } else {
+        fireTorpedoAt(p.x, p.y, {
+          guideMode: "point",
+          pointerId: e.pointerId,
+        });
       }
+    } else {
+      lastPointerWasTouch = false;
+      aim.x = p.x;
+      aim.y = p.y;
+      fireTorpedoAt(p.x, p.y, { guideMode: "cursor" });
     }
-    fireTorpedoAt(p.x, p.y);
   });
 
   ["pointerup", "pointercancel", "lostpointercapture"].forEach((evName) => {
@@ -624,7 +805,6 @@ window.UnderwaterGame = (() => {
     const ctrl = btn.dataset.uwControl;
     const release = () => {
       btn.classList.remove("is-pressed");
-      if (ctrl in touchDirs) touchDirs[ctrl] = false;
     };
     btn.addEventListener("pointerdown", (e) => {
       e.preventDefault();
@@ -636,9 +816,8 @@ window.UnderwaterGame = (() => {
         /* ignore */
       }
       if (ctrl === "fire") {
-        fireTorpedoAt(Math.min(W - 20, player.x + 320), player.y);
-      } else if (ctrl in touchDirs) {
-        touchDirs[ctrl] = true;
+        lastPointerWasTouch = e.pointerType === "touch";
+        fireAutoTorpedo();
       }
     });
     ["pointerup", "pointercancel", "lostpointercapture"].forEach((evName) => {
@@ -950,17 +1129,24 @@ window.UnderwaterGame = (() => {
 
     let dx = 0;
     let dy = 0;
-    if (keys.has("ArrowLeft") || keys.has("KeyA") || touchDirs.left) dx -= 1;
-    if (keys.has("ArrowRight") || keys.has("KeyD") || touchDirs.right) dx += 1;
-    if (keys.has("ArrowUp") || keys.has("KeyW") || touchDirs.up) dy -= 1;
-    if (keys.has("ArrowDown") || keys.has("KeyS") || touchDirs.down) dy += 1;
+    if (keys.has("ArrowLeft") || keys.has("KeyA")) dx -= 1;
+    if (keys.has("ArrowRight") || keys.has("KeyD")) dx += 1;
+    if (keys.has("ArrowUp") || keys.has("KeyW")) dy -= 1;
+    if (keys.has("ArrowDown") || keys.has("KeyS")) dy += 1;
     if (dx && dy) {
       dx *= 0.7071;
       dy *= 0.7071;
     }
+    dx += joyVec.x;
+    dy += joyVec.y;
+    const mag = Math.hypot(dx, dy);
+    if (mag > 1) {
+      dx /= mag;
+      dy /= mag;
+    }
     player.x = Math.max(40, Math.min(W - 40, player.x + dx * player.speed * dt));
     player.y = Math.max(40, Math.min(H - 40, player.y + dy * player.speed * dt));
-    player.tilt += (dy * 0.22 - player.tilt) * Math.min(1, dt * 10);
+    player.tilt += (dy * 0.24 - player.tilt) * Math.min(1, dt * 10);
     player.wakeTimer -= dt;
     if (player.wakeTimer <= 0) {
       player.wakeTimer = 0.08;
@@ -1066,19 +1252,47 @@ window.UnderwaterGame = (() => {
 
     for (let i = torps.length - 1; i >= 0; i--) {
       const t = torps[i];
-      const toAim = Math.hypot(aim.x - t.x, aim.y - t.y);
-      if (toAim > 4) {
-        const want = Math.atan2(aim.y - t.y, aim.x - t.x);
-        const have = Math.atan2(t.vy, t.vx);
-        let diff = want - have;
-        while (diff > Math.PI) diff -= Math.PI * 2;
-        while (diff < -Math.PI) diff += Math.PI * 2;
-        const maxTurn = TORP_TURN * dt;
-        const turn = Math.max(-maxTurn, Math.min(maxTurn, diff));
-        const ang = have + turn;
-        t.speed = Math.min(TORP_MAX_SPEED, t.speed + 40 * dt);
-        t.vx = Math.cos(ang) * t.speed;
-        t.vy = Math.sin(ang) * t.speed;
+      let tx = null;
+      let ty = null;
+      let turnMult = 1;
+      if (t.guideMode === "lock" && t.target) {
+        const alive = t.targetKind === "enemy" ? enemies.includes(t.target) : fish.includes(t.target);
+        if (alive) {
+          tx = t.target.x;
+          ty = t.target.y;
+          turnMult = 1.9;
+        } else {
+          t.target = null;
+          t.guideMode = "straight";
+        }
+      } else if (t.guideMode === "point") {
+        if (Math.hypot(t.gx - t.x, t.gy - t.y) < 14) {
+          t.guideMode = "straight";
+        } else {
+          tx = t.gx;
+          ty = t.gy;
+          turnMult = 1.35;
+        }
+      } else if (t.guideMode === "cursor") {
+        tx = aim.x;
+        ty = aim.y;
+      }
+
+      if (tx !== null && ty !== null) {
+        const toAim = Math.hypot(tx - t.x, ty - t.y);
+        if (toAim > 4) {
+          const want = Math.atan2(ty - t.y, tx - t.x);
+          const have = Math.atan2(t.vy, t.vx);
+          let diff = want - have;
+          while (diff > Math.PI) diff -= Math.PI * 2;
+          while (diff < -Math.PI) diff += Math.PI * 2;
+          const maxTurn = TORP_TURN * turnMult * dt;
+          const turn = Math.max(-maxTurn, Math.min(maxTurn, diff));
+          const ang = have + turn;
+          t.speed = Math.min(TORP_MAX_SPEED, t.speed + 55 * dt);
+          t.vx = Math.cos(ang) * t.speed;
+          t.vy = Math.sin(ang) * t.speed;
+        }
       }
       t.x += t.vx * dt;
       t.y += t.vy * dt;
@@ -1756,12 +1970,67 @@ window.UnderwaterGame = (() => {
 
     for (const e of enemies) drawEnemyFish(e);
 
+    // Target-Lock reticles & tracking lines for locked torpedoes
+    const drawnLocks = new Set();
+    for (const t of torps) {
+      if (t.guideMode === "lock" && t.target) {
+        const alive = t.targetKind === "enemy" ? enemies.includes(t.target) : fish.includes(t.target);
+        if (!alive) continue;
+        // Faint dashed homing line
+        ctx.save();
+        ctx.strokeStyle = "rgba(255, 210, 62, 0.45)";
+        ctx.lineWidth = 1.6;
+        ctx.setLineDash([5, 5]);
+        ctx.beginPath();
+        ctx.moveTo(t.x, t.y);
+        ctx.lineTo(t.target.x, t.target.y);
+        ctx.stroke();
+        ctx.restore();
+
+        if (!drawnLocks.has(t.target)) {
+          drawnLocks.add(t.target);
+          const lx = t.target.x;
+          const ly = t.target.y;
+          const pulse = 20 + Math.sin(elapsed * 14) * 2.5;
+          ctx.save();
+          ctx.translate(lx, ly);
+          ctx.rotate(elapsed * 2.2);
+          ctx.strokeStyle = INK;
+          ctx.lineWidth = 4.6;
+          ctx.beginPath();
+          ctx.arc(0, 0, pulse, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.strokeStyle = "#ff5b6e";
+          ctx.lineWidth = 2.4;
+          for (let q = 0; q < 4; q++) {
+            const a = q * Math.PI * 0.5 + 0.35;
+            ctx.beginPath();
+            ctx.arc(0, 0, pulse, a, a + 0.85);
+            ctx.stroke();
+          }
+          ctx.strokeStyle = "#ffd23e";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(-pulse - 5, 0);
+          ctx.lineTo(-pulse + 5, 0);
+          ctx.moveTo(pulse - 5, 0);
+          ctx.lineTo(pulse + 5, 0);
+          ctx.moveTo(0, -pulse - 5);
+          ctx.lineTo(0, -pulse + 5);
+          ctx.moveTo(0, pulse - 5);
+          ctx.lineTo(0, pulse + 5);
+          ctx.stroke();
+          ctx.restore();
+        }
+      }
+    }
+
     // Comic torpedoes
     for (const t of torps) {
       ctx.save();
       ctx.translate(t.x, t.y);
       ctx.rotate(Math.atan2(t.vy, t.vx));
-      ctx.fillStyle = "#ffe156";
+      ctx.fillStyle = t.guideMode === "lock" ? "#ffd23e" : "#ffe156";
       ctx.strokeStyle = INK;
       ctx.lineWidth = 2;
       ctx.beginPath();
@@ -1776,7 +2045,7 @@ window.UnderwaterGame = (() => {
       ctx.restore();
     }
 
-    if (mode === "play") {
+    if (mode === "play" && (!lastPointerWasTouch || activeAimPointerId !== null)) {
       const ax = aim.x;
       const ay = aim.y;
       ctx.save();

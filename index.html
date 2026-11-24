@@ -242,7 +242,7 @@
 
         <div id="uw-overlay-start" class="uw-screen active">
           <h1>Franzos Unterwasserabenteuer</h1>
-          <p class="uw-hint">Steuerung: Pfeiltasten / WASD oder Touch-Steuerkreuz &nbsp;&bull;&nbsp; Torpedo: Klick, Tipp oder Feuer-Taste</p>
+          <p class="uw-hint">Steuerung: WASD / Pfeiltasten oder Analog-Joystick &nbsp;&bull;&nbsp; Torpedo: Ziel antippen (Ziel-Lock) oder Auto-Feuer-Taste</p>
           <p class="uw-hint">Richtigen Fisch mit dem U-Boot einsammeln: +100 Punkte &amp; mehr Atemluft! Falscher Fisch: Luftverlust!</p>
           <p class="uw-hint">Torpedos zerstören Gegner und Fische im Weg (ohne Luft-Effekt) &ndash; Lebensfische sind unzerstörbar</p>
           <p class="uw-hint">Lebensfisch einsammeln: Frage beantworten &amp; ein Extra-Leben gewinnen &nbsp;&bull;&nbsp; M: Musik an / aus</p>
@@ -289,16 +289,19 @@
       </div>
       <div class="uw-below" id="uw-below">
         <div class="uw-instructions">
-          <strong>Steuerung &amp; Touch:</strong> Sammle den richtigen Fisch mit dem U-Boot für Punkte &amp; Atemluft. Torpedos zerstören Gegner und Fische im Weg (ohne Luft-Effekt) &ndash; Lebensfische sind unzerstörbar.
+          <strong>Steuerung &amp; Ziel-Lock:</strong> Steuere das U-Boot stufenlos mit dem Joystick (oder WASD). Tippe Gegner oder Fische direkt an, damit der Torpedo sie automatisch verfolgt &ndash; oder nutze die Auto-Ziel-Taste!
         </div>
         <div class="uw-touch-controls" id="uw-touch-controls" aria-label="U-Boot Touch-Steuerung">
-          <div class="uw-dpad">
-            <button type="button" class="uw-ctrl-btn uw-ctrl-up" data-uw-control="up" aria-label="Hoch">↑</button>
-            <button type="button" class="uw-ctrl-btn uw-ctrl-left" data-uw-control="left" aria-label="Links">←</button>
-            <button type="button" class="uw-ctrl-btn uw-ctrl-right" data-uw-control="right" aria-label="Rechts">→</button>
-            <button type="button" class="uw-ctrl-btn uw-ctrl-down" data-uw-control="down" aria-label="Runter">↓</button>
+          <div class="uw-joystick" id="uw-joystick" role="application" aria-label="U-Boot Analog-Joystick">
+            <div class="uw-joy-ring" aria-hidden="true">
+              <span class="uw-joy-dir uw-joy-dir-up">▲</span>
+              <span class="uw-joy-dir uw-joy-dir-left">◀</span>
+              <span class="uw-joy-dir uw-joy-dir-right">▶</span>
+              <span class="uw-joy-dir uw-joy-dir-down">▼</span>
+            </div>
+            <div class="uw-joy-knob" id="uw-joy-knob" aria-hidden="true"></div>
           </div>
-          <button type="button" class="uw-ctrl-btn uw-ctrl-fire" data-uw-control="fire" aria-label="Torpedo abfeuern">➤ <span>TORPEDO</span></button>
+          <button type="button" class="uw-ctrl-btn uw-ctrl-fire" data-uw-control="fire" aria-label="Torpedo mit automatischer Zielerfassung abfeuern">➤ <span>TORPEDO</span><small>AUTO-ZIEL</small></button>
         </div>
       </div>
     </section>

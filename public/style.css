@@ -660,22 +660,28 @@ canvas.boss-aim{cursor:crosshair;touch-action:none}
 .uw-final{font-size:18px;color:#ffd23e;margin:10px 0}
 .uw-reveal{font-size:clamp(14px,2vw,19px);color:#7df3ff;text-shadow:0 0 10px rgba(125,243,255,.7);margin:10px 0 0}
 
-/* Underwater below bar & Touch D-Pad + Fire */
+/* Underwater below bar & Virtual Analog Joystick + Auto-Aim Fire */
 .uw-below{max-width:960px;margin:14px auto 0;display:flex;align-items:center;justify-content:space-between;gap:20px;padding-top:12px;border-top:1px solid rgba(57,232,255,.2)}
 .uw-instructions{color:#9fd8ff;font-size:12px;line-height:1.6;max-width:480px}
 .uw-instructions strong{color:#e0f7ff;font-size:13px}
-.uw-touch-controls{display:flex;align-items:center;gap:14px;flex-shrink:0}
-.uw-dpad{display:grid;grid-template-columns:repeat(3,48px);grid-template-rows:repeat(3,48px);gap:5px}
+.uw-touch-controls{display:flex;align-items:center;gap:16px;flex-shrink:0}
+.uw-joystick{position:relative;width:132px;height:132px;border-radius:50%;background:radial-gradient(circle at center,#0e334d 0%,#082034 72%,#051626 100%);border:2px solid rgba(57,232,255,.78);box-shadow:inset 0 0 18px rgba(57,232,255,.18),0 4px 0 #041320;display:grid;place-items:center;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;cursor:grab}
+.uw-joystick.is-active{border-color:#9ff4ff;box-shadow:inset 0 0 24px rgba(57,232,255,.35),0 0 16px rgba(57,232,255,.32);cursor:grabbing}
+.uw-joy-ring{position:absolute;inset:12px;border-radius:50%;border:1px dashed rgba(57,232,255,.35);pointer-events:none}
+.uw-joy-dir{position:absolute;color:rgba(159,216,255,.55);font-size:10px;line-height:1;pointer-events:none}
+.uw-joy-dir-up{top:4px;left:50%;transform:translateX(-50%)}
+.uw-joy-dir-down{bottom:4px;left:50%;transform:translateX(-50%)}
+.uw-joy-dir-left{left:5px;top:50%;transform:translateY(-50%)}
+.uw-joy-dir-right{right:5px;top:50%;transform:translateY(-50%)}
+.uw-joy-knob{width:54px;height:54px;border-radius:50%;background:radial-gradient(circle at 35% 32%,#8bf6ff 0%,#2bbbe0 55%,#12698c 100%);border:2.5px solid #e9fcff;box-shadow:0 4px 10px rgba(2,10,20,.65),inset 0 -3px 6px rgba(4,28,46,.5);pointer-events:none;transition:transform .08s ease-out}
+.uw-joystick.is-active .uw-joy-knob{transition:none;background:radial-gradient(circle at 35% 32%,#d1fdff 0%,#45e4ff 55%,#1a87b0 100%)}
 .uw-ctrl-btn{border:2px solid #39e8ff;border-radius:10px;background:#0e2f45;color:#e5faff;font:700 18px "Courier New",Courier,monospace;cursor:pointer;display:grid;place-items:center;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;box-shadow:0 3px 0 #041320;transition:transform .08s ease,background-color .08s ease,border-color .08s ease}
 .uw-ctrl-btn:hover{background:#164665}
 .uw-ctrl-btn:focus-visible{outline:2px solid #ffd23e;outline-offset:2px}
 .uw-ctrl-btn.is-pressed,.uw-ctrl-btn:active{transform:translateY(2px) scale(.96);background:#247199;border-color:#9ff4ff;box-shadow:0 1px 0 #041320}
-.uw-ctrl-up{grid-column:2;grid-row:1}
-.uw-ctrl-left{grid-column:1;grid-row:2}
-.uw-ctrl-right{grid-column:3;grid-row:2}
-.uw-ctrl-down{grid-column:2;grid-row:3}
-.uw-ctrl-fire{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-width:104px;min-height:66px;padding:10px 14px;background:linear-gradient(180deg,#f5b942 0%,#d8851d 100%);border-color:#ffe7a0;color:#1b1104;font-size:18px;letter-spacing:.8px;box-shadow:0 4px 0 #5b3207}
+.uw-ctrl-fire{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:108px;min-height:74px;padding:10px 14px;background:linear-gradient(180deg,#f5b942 0%,#d8851d 100%);border-color:#ffe7a0;color:#1b1104;font-size:18px;letter-spacing:.8px;box-shadow:0 4px 0 #5b3207}
 .uw-ctrl-fire span{font-size:11px;font-weight:700;letter-spacing:1px}
+.uw-ctrl-fire small{font-size:9px;font-weight:700;letter-spacing:.6px;opacity:.85}
 .uw-ctrl-fire:hover{background:linear-gradient(180deg,#ffca5c 0%,#e59429 100%)}
 .uw-ctrl-fire.is-pressed,.uw-ctrl-fire:active{background:linear-gradient(180deg,#ffe07d 0%,#f0a332 100%);border-color:#ffffff;color:#120a00;box-shadow:0 1px 0 #5b3207}
 
@@ -886,15 +892,18 @@ body.is-fullscreen.uw-playing .site-footer{
     justify-content:space-between;
     gap:12px;
   }
-  body.is-touch-device.uw-playing .uw-dpad{
-    grid-template-columns:repeat(3,48px);
-    grid-template-rows:repeat(3,48px);
-    gap:5px;
+  body.is-touch-device.uw-playing .uw-joystick{
+    width:140px;
+    height:140px;
+  }
+  body.is-touch-device.uw-playing .uw-joy-knob{
+    width:56px;
+    height:56px;
   }
   body.is-touch-device.uw-playing .uw-ctrl-fire{
-    min-width:108px;
-    min-height:88px;
-    border-radius:14px;
+    min-width:112px;
+    min-height:92px;
+    border-radius:16px;
   }
 }
 
@@ -1000,14 +1009,17 @@ body.is-fullscreen.uw-playing .site-footer{
     margin:0;
     box-shadow:0 0 18px rgba(57,232,255,.25);
   }
-  body.is-touch-device.uw-playing .uw-dpad{
+  body.is-touch-device.uw-playing .uw-joystick{
     grid-column:1;
     grid-row:1 / 3;
     align-self:center;
     justify-self:center;
-    grid-template-columns:repeat(3,44px);
-    grid-template-rows:repeat(3,44px);
-    gap:3px;
+    width:128px;
+    height:128px;
+  }
+  body.is-touch-device.uw-playing .uw-joy-knob{
+    width:52px;
+    height:52px;
   }
   body.is-touch-device.uw-playing .uw-topbar{
     grid-column:3;
@@ -1036,14 +1048,17 @@ body.is-fullscreen.uw-playing .site-footer{
     grid-row:2;
     align-self:center;
     justify-self:center;
-    width:88px;
-    min-width:84px;
-    min-height:76px;
+    width:90px;
+    min-width:86px;
+    min-height:82px;
     padding:8px 6px;
-    border-radius:14px;
+    border-radius:16px;
     font-size:20px;
   }
   body.is-touch-device.uw-playing .uw-ctrl-fire span{
     font-size:10px;
+  }
+  body.is-touch-device.uw-playing .uw-ctrl-fire small{
+    font-size:8px;
   }
 }
